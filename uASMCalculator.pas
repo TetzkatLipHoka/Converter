@@ -53,7 +53,7 @@ function EFlags32_DAA( Operand1 : Integer; out OutValue : Integer; CarryFlag : b
 function EFlags32_DAS( Operand1 : Integer; out OutValue : Integer; CarryFlag : boolean = False ) : THandle;
 function EFlags32_AAA( Operand1 : Integer; out OutValue : Integer ) : THandle;
 function EFlags32_AAS( Operand1 : Integer; out OutValue : Integer ) : THandle;
-//function EFlags32_AAM( Operand1 : Integer; B : Byte; out OutValue : Integer ) : THandle; // MS no clue
+function EFlags32_AAM( Operand1 : Byte; out OutValue : Integer ) : THandle;
 function EFlags32_AAD( Operand1 : Integer; B : Byte; out OutValue : Integer ) : THandle;
 
 {$IFDEF Win64}
@@ -1542,8 +1542,8 @@ asm
   {$I *.inc}
   {$UNDEF EFLAGS_RESTORE}
 end;
-(*
-function EFlags32_AAM( Operand1 : Integer; B : Byte; out OutValue : Integer ) : THandle;
+
+function EFlags32_AAM( Operand1 : Byte; out OutValue : Integer ) : THandle;
 asm
   {$DEFINE EFLAGS_BACKUP}
   {$I *.inc}
@@ -1556,17 +1556,14 @@ asm
   {$ELSE}
     pop eax      // Restore Operand1
     AAM
-    mov edx, eax
+    mov [edx], eax
   {$ENDIF}
 
   {$DEFINE EFLAGS_RESTORE}
   {$I *.inc}
   {$UNDEF EFLAGS_RESTORE}
-  {$IFNDEF Win64}
-  mov [ecx],edx // (ecx=@OutValue)=edx
-  {$ENDIF}
 end;
-*)
+
 function EFlags32_AAD( Operand1 : Integer; B : Byte; out OutValue : Integer ) : THandle;
 asm
   {$DEFINE EFLAGS_BACKUP}

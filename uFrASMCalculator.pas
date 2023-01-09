@@ -621,7 +621,7 @@ begin
 //  if NOT chkASMSigned.Enabled then
 //    chkASMSigned.Checked := false;
 
-  grpOperand2.Enabled          := NOT ( TRadioGroup( Sender ).ItemIndex in [ asmCDQ, asmINC, asmDEC, asmNEG, asmNOT, asmCBW, asmCWDE, asmBSWAP, asmBSF, asmBSR, asmPOPCNT, asmLZCNT, asmDAA, asmDAS, asmAAA, asmAAS ] );
+  grpOperand2.Enabled          := NOT ( TRadioGroup( Sender ).ItemIndex in [ asmCDQ, asmINC, asmDEC, asmNEG, asmNOT, asmCBW, asmCWDE, asmBSWAP, asmBSF, asmBSR, asmPOPCNT, asmLZCNT, asmDAA, asmDAS, asmAAA, asmAAS, asmAAM ] );
   lbledtASMHex2.Enabled        := grpOperand2.Enabled;
   lbledtASMTyped2.Enabled      := grpOperand2.Enabled;
   lbledtASMBinary2.Enabled     := grpOperand2.Enabled;
@@ -772,19 +772,19 @@ begin
                      Exit;
                      end;
                    end;
-(*
+
       asmAAM     : begin
-                    {$IFNDEF Win64}
-                   if ( B <= High( Byte ) ) then
-                     Flags := EFLAGS32_AAM( A, B, Res )
+                   {$IFNDEF Win64}
+                   if ( A <= High( Byte ) ) then
+                     Flags := EFLAGS32_AAM( A, Res )
                    else
                    {$ENDIF}
                      begin
-                     InvalidValue( {$IFDEF Win64}0{$ENDIF} );
+                     InvalidValue( {$IFDEF Win64}0{$ELSE}1{$ENDIF} );
                      Exit;
                      end;
                    end;
-*)
+
       {$IFNDEF Win64}
       asmAAS     : begin
                    {$IFDEF Win64}
