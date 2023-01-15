@@ -90,23 +90,23 @@ type
     procedure lbledtASMHexKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
   private
     { Private-Deklarationen }
-    {$IF DECLARED( uTLH.ComponentTools )}
+    {$IFDEF uTLH_ComponentTools}
     function  GetMouseMode : Boolean;
     procedure SetMouseMode( Value : Boolean );
-    {$IFEND}
+    {$ENDIF}
     procedure UpdateCPUFlagLabels( Sender: TObject );
 
-    {$IF DECLARED( uTLH.ComponentTools )}
+    {$IFDEF uTLH_ComponentTools}
     procedure OnMouseWheelVerticalHex( Sender : TObject; Msg : TWMMouseWheel );
     procedure OnMouseWheelVerticalTyped( Sender : TObject; Msg : TWMMouseWheel );
-    {$IFEND}
+    {$ENDIF}
   public
     { Public-Deklarationen }
     constructor Create( AOwner: TComponent ); override;
     procedure ASMCalculator;
-    {$IF DECLARED( uTLH.ComponentTools )}
+    {$IFDEF uTLH_ComponentTools}
     property  MouseMode : Boolean read GetMouseMode write SetMouseMode;
-    {$IFEND}
+    {$ENDIF}
   end;
 
 implementation
@@ -131,7 +131,7 @@ begin
   btnASMSwap.Top      := lblASMOperation.Top;
   {$ENDIF}
 
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   lbledtASMHex1.OnBeforePaste := OnBeforePasteHex;
   lbledtASMTyped1.OnBeforePaste := OnBeforePasteTyped;
   lbledtASMHex2.OnBeforePaste := OnBeforePasteHex;
@@ -140,7 +140,7 @@ begin
   lbledtASMHex3.OnBeforePaste := OnBeforePasteReadOnly;
   lbledtASMTyped3.OnBeforePaste := OnBeforePasteReadOnly;
   lbledtASMBinary3.OnBeforePaste := OnBeforePasteReadOnly;
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.FrameResize(Sender: TObject);
@@ -184,9 +184,9 @@ end;
 
 procedure TFrASMCalculator.lbledtASMCPUFlagsKeyPress(Sender: TObject; var Key: Char);
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   OnKeyPressCheckChar( Sender, Key, kpmHex );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.UpdateCPUFlagLabels( Sender: TObject );
@@ -273,26 +273,26 @@ end;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 procedure TFrASMCalculator.lbledtASMTypedKeyPress(Sender: TObject; var Key: Char);
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   if chkASMSigned.Checked then
     OnKeyPressCheckChar( Sender, Key, kpmSigned )
   else
     OnKeyPressCheckChar( Sender, Key, kpmUnSigned );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.ASMHexKeyPress(Sender: TObject; var Key: Char);
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   OnKeyPressCheckChar( Sender, Key, kpmHex );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.KeyPressReadOnly(Sender: TObject; var Key: Char);
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   OnKeyPressCheckChar( Sender, Key, kpmReadOnly );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.OnBeforePasteTyped( Sender: TObject; var s: String; var StopPaste : boolean );
@@ -327,19 +327,19 @@ end;
 
 procedure TFrASMCalculator.ASMHexKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   OnKeyDownManipulateNumbersViaUpDown( Sender, Key, Shift, kpmHex );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.lbledtASMTypedKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   if chkASMSigned.Checked then
     OnKeyDownManipulateNumbersViaUpDown( Sender, Key, Shift, kpmSigned )
   else
     OnKeyDownManipulateNumbersViaUpDown( Sender, Key, Shift, kpmUnSigned );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.pnlASMOperandsResize(Sender: TObject);
@@ -419,12 +419,12 @@ begin
 end;
 
 procedure TFrASMCalculator.lbledtASMHexKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
-{$IF DECLARED( uTLH.ComponentTools )}
+{$IFDEF uTLH_ComponentTools}
 var
   S : tOnKeyPressRangeLimitSettings;
-{$IFEND}
+{$ENDIF}
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   FillChar( S, SizeOf( S ), 0 );
   if chkASMSigned.Checked then
     begin
@@ -439,26 +439,28 @@ begin
   else
     begin
     S.Mode := kplmUnSigned;
+    {$IF CompilerVersion < 23}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
     S.MinU := 0;
     if ( rgASMArchitecture.ItemIndex = 1 ) then
       S.MaxU := {$IF CompilerVersion < 23}High( Cardinal ){$ELSE}High( UInt64 ){$IFEND}
     else
       S.MaxU := High( Cardinal );
     S.IncU := 1;
+    {$IF CompilerVersion < 23}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
     end;
   S.Hex  := True;
 
   OnKeyUpNumberRangeLimit( Sender, Key, S );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.lbledtASMTypedKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
-{$IF DECLARED( uTLH.ComponentTools )}
+{$IFDEF uTLH_ComponentTools}
 var
   S : tOnKeyPressRangeLimitSettings;
-{$IFEND}
+{$ENDIF}
 begin
-  {$IF DECLARED( uTLH.ComponentTools )}
+  {$IFDEF uTLH_ComponentTools}
   FillChar( S, SizeOf( S ), 0 );
 
   if chkASMSigned.Checked then
@@ -479,16 +481,18 @@ begin
   else
     begin
     S.Mode := kplmUnSigned;
+    {$IF CompilerVersion < 23}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
     S.MinU := 0;
     if ( rgASMArchitecture.ItemIndex = 1 ) then
       S.MaxU := {$IF CompilerVersion < 23}High( Cardinal ){$ELSE}High( UInt64 ){$IFEND}
     else
       S.MaxU := High( Cardinal );
     S.IncU := 1;
+    {$IF CompilerVersion < 23}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
     end;
 
   OnKeyUpNumberRangeLimit( Sender, Key, S );
-  {$IFEND}
+  {$ENDIF}
 end;
 
 procedure TFrASMCalculator.lbledtASMTypedChange(Sender: TObject);
@@ -511,7 +515,9 @@ begin
     if chkASMSigned.Checked then
       I  := StrToIntDef( TLabeledEdit( Sender ).Text, 0 )
     else
+      {$IF CompilerVersion < 23}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
       UI := StrToUIntDef( TLabeledEdit( Sender ).Text, 0 );
+      {$IF CompilerVersion < 23}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118      
     end;
 
   if ( Sender = lbledtASMTyped1 ) then
@@ -1353,7 +1359,7 @@ begin
   lbledtASMCPUFlags.Text  := IntToHex( Flags, SizeOf( Integer )*2 );
 end;
 
-{$IF DECLARED( uTLH.ComponentTools )}
+{$IFDEF uTLH_ComponentTools}
 function TFrASMCalculator.GetMouseMode : Boolean;
 begin
   result := Assigned( lbledtASMHex1.OnMouseWheelVertical );
@@ -1414,6 +1420,6 @@ begin
   else
     OnKeyDownManipulateNumbersViaUpDown( Sender, Key, [], kpmUnsigned );
 end;
-{$IFEND}
+{$ENDIF}
 
 end.
