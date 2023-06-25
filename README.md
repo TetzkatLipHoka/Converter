@@ -14,7 +14,8 @@ Swap Endian or Edit Bits
 Untyped Hex to various Typed Values in both Endians
 
 
-![image](https://user-images.githubusercontent.com/10427286/196573932-9db0337a-1bb4-4838-ac1a-801e2c70f2c3.png)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/a6a73fdf-8bdb-4389-bce6-f9d77fecf348)
+
 
 Byte-Tools
 
@@ -23,6 +24,7 @@ Byte-Tools
   Shift Hex-Values
   Generate (HMAC)-CRC/Hashes for Strings or Files
   Convert Temperature Units
+  Compress/Decompress Files/Chunks
 
 
 ![image](https://user-images.githubusercontent.com/10427286/196573942-c57759a3-99da-4e5f-bcdc-23da487ad91e.png)
