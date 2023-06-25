@@ -12,7 +12,7 @@ interface
 
 uses
   Classes, Controls, Forms, StdCtrls, ExtCtrls, CheckLst, Messages
-  {$IFDEF uTLH_ComponentTools}, uTLH.ComponentTools{$ENDIF}
+  {$IFDEF uTLH_ComponentTools}, uTLH.ComponentTools, Vcl.Buttons{$ENDIF}
   ;
 
 type
@@ -44,12 +44,10 @@ type
     grpOperand1: TGroupBox;
     lbledtASMHex1: TLabeledEdit;
     lbledtASMTyped1: TLabeledEdit;
-    btnASMOperand1Result: TButton;
     lbledtASMBinary1: TLabeledEdit;
     grpOperand2: TGroupBox;
     lbledtASMHex2: TLabeledEdit;
     lbledtASMTyped2: TLabeledEdit;
-    btnASMOperand2Result: TButton;
     lbledtASMBinary2: TLabeledEdit;
     grpResult: TGroupBox;
     lbledtASMHex3: TLabeledEdit;
@@ -59,12 +57,14 @@ type
     rgASMArchitecture: TRadioGroup;
     pnlCaption: TPanel;
     lblASMOperation: TLabel;
-    btnASMSwap: TButton;
     pnlOperation: TPanel;
     rgASMOperator: TRadioGroup;
     chkASMCarryFlag: TCheckBox;
     grpASMShift: TGroupBox;
     lbledtASMShift: TLabeledEdit;
+    btnASMOperand1Result: TBitBtn;
+    btnASMOperand2Result: TBitBtn;
+    btnASMSwap: TBitBtn;
     procedure chklstCPUFlagsClickCheck(Sender: TObject);
     procedure lbledtASMCPUFlagsKeyPress(Sender: TObject; var Key: Char);
     procedure lbledtASMCPUFlagsChange(Sender: TObject);
@@ -100,6 +100,7 @@ type
     procedure OnMouseWheelVerticalHex( Sender : TObject; Msg : TWMMouseWheel );
     procedure OnMouseWheelVerticalTyped( Sender : TObject; Msg : TWMMouseWheel );
     {$ENDIF}
+    function CreateButtonGlyph( BitBtn : TBitBtn; IconID : Byte ) : boolean;
   public
     { Public-Deklarationen }
     constructor Create( AOwner: TComponent ); override;
@@ -113,10 +114,27 @@ implementation
 
 uses
   Windows, SysUtils,
+
+  // Glyphs
+  Graphics,
+  {$IF CompilerVersion >= 22}
+    Vcl.Imaging.pngimage,
+  {$ELSE}
+    PNGImage,
+  {$IFEND}
+  uTLH.Graphics, uTLH.Compression,
+
   uTLH.Strings, uTLH.Numeral,
   uASMCalculator;
 
 {$R *.dfm}
+{$R *.res}
+
+const
+  ICO_RESULT_           = 0;
+//  ICO_RESULT_DISABLED_  = 1;
+  ICO_SWAP_           = 2;
+//  ICO_SWAP_DISABLED_  = 3;
 
 constructor TFrASMCalculator.Create( AOwner: TComponent );
 begin
@@ -141,6 +159,14 @@ begin
   lbledtASMTyped3.OnBeforePaste := OnBeforePasteReadOnly;
   lbledtASMBinary3.OnBeforePaste := OnBeforePasteReadOnly;
   {$ENDIF}
+
+//  btnASMSwap.Caption := '<>';
+//  btnASMOperand1Result.Caption := 'R';
+//  btnASMOperand2Result.Caption := 'R';
+
+  CreateButtonGlyph( btnASMSwap, ICO_SWAP_ );
+  CreateButtonGlyph( btnASMOperand1Result, ICO_RESULT_ );
+  CreateButtonGlyph( btnASMOperand2Result, ICO_RESULT_ );
 end;
 
 procedure TFrASMCalculator.FrameResize(Sender: TObject);
@@ -1421,5 +1447,67 @@ begin
     OnKeyDownManipulateNumbersViaUpDown( Sender, Key, [], kpmUnsigned );
 end;
 {$ENDIF}
+
+function TFrASMCalculator.CreateButtonGlyph( BitBtn : TBitBtn; IconID : Byte ) : boolean;
+const
+  ResName = 'ASMCALC_ICONS';
+  ResType = 'ICONS';
+var
+  RS  : TResourceStream;
+  i   : Integer;
+  S   : TMemoryStream;
+  PNG : {$IF CompilerVersion < 23}TPNGObject{$ELSE}TPngImage{$IFEND};
+  bmp : TBitmap;
+  bmpOut : Array [ 0..1 ] of TBitmap;
+begin
+  result := false;
+  if ( IconID > ICO_SWAP_ ) then
+    Exit;
+  if ( FindResource( hInstance, PChar( ResName{Name} ), PChar( resType ) ) = 0 ) {$IFDEF UNICODE} AND ( FindResourceA( hInstance, PAnsiChar( AnsiString( ResName{Name} ) ), PAnsiChar( AnsiString( resType ) ){PAnsiChar( 10 ) {RT_RCDATA} ) = 0 ){$ENDIF} then
+    Exit;
+  RS := TResourceStream.Create( HInstance, ResName{Name}, PChar( resType ) );
+
+  S := TMemoryStream.Create;
+  for i := 0 to 1 do
+    begin
+    RS.Position := 0;
+    if ( i = 1 ) then
+      Inc( IconID );
+
+    if ( ExtractStream7z( RS, S, '', IconID ) < 0 ) then
+      begin
+      RS.free;
+      S.free;
+      Exit;
+      end;
+    PNG := {$IF CompilerVersion < 23}TPNGObject{$ELSE}TPngImage{$IFEND}.Create;
+    PNG.LoadFromStream( S );
+    S.Clear;
+    bmp := TBitmap.Create;
+    PNG.AssignTo( BMP );
+//    PNG2BMP( PNG, bmp );
+
+    PNG.free;
+
+    bmpOut[ i ]                  := TBitmap.Create;
+    bmpOut[ i ].Width            := BitBtn.Width-4;
+    bmpOut[ i ].Height           := BitBtn.Height-4;
+    BitmapResize( bmp, bmpOut[ i ] );
+
+    bmp.Free;
+    end;
+  S.free;
+  RS.Free;
+
+  bmpOut[ 0 ].Width  := bmpOut[ 0 ].Width*2;
+  bmpOut[ 0 ].Canvas.CopyMode := cmSrcCopy;
+  bmpOut[ 0 ].Canvas.CopyRect( Classes.Rect( bmpOut[ 1 ].Width, 0, bmpOut[ 0 ].Width, bmpOut[ 0 ].Height ), bmpOut[ 1 ].Canvas, Classes.Rect( 0, 0, bmpOut[ 1 ].Width, bmpOut[ 1 ].Height ) );
+
+  BitBtn.NumGlyphs := 2;
+  BitBtn.Glyph.Assign( bmpOut[ 0 ] );
+
+  for i := 0 to 1 do
+    bmpOut[ i ].Free;
+end;
 
 end.

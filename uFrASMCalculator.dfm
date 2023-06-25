@@ -359,13 +359,12 @@ object FrASMCalculator: TFrASMCalculator
         Font.Style = [fsBold]
         ParentFont = False
       end
-      object btnASMSwap: TButton
+      object btnASMSwap: TBitBtn
         Left = 0
         Top = -1
-        Width = 14
-        Height = 15
+        Width = 16
+        Height = 16
         Hint = 'Swap Operands'
-        Caption = '<>'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -11
@@ -437,23 +436,6 @@ object FrASMCalculator: TFrASMCalculator
           OnKeyPress = lbledtASMTypedKeyPress
           OnKeyUp = lbledtASMTypedKeyUp
         end
-        object btnASMOperand1Result: TButton
-          Left = 107
-          Top = 0
-          Width = 14
-          Height = 15
-          Hint = 'Copy from Result'
-          Anchors = [akTop, akRight]
-          Caption = 'R'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = [fsBold]
-          ParentFont = False
-          TabOrder = 2
-          OnClick = btnASMOperandResultClick
-        end
         object lbledtASMBinary1: TLabeledEdit
           Left = 36
           Top = 58
@@ -465,9 +447,25 @@ object FrASMCalculator: TFrASMCalculator
           EditLabel.Height = 13
           EditLabel.Caption = 'Binary'
           LabelPosition = lpLeft
-          TabOrder = 3
+          TabOrder = 2
           Text = '0'
           OnKeyPress = KeyPressReadOnly
+        end
+        object btnASMOperand1Result: TBitBtn
+          Left = 105
+          Top = 0
+          Width = 16
+          Height = 16
+          Hint = 'Copy from Result'
+          Anchors = [akTop, akRight]
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+          TabOrder = 3
+          OnClick = btnASMOperandResultClick
         end
       end
       object grpOperand2: TGroupBox
@@ -518,23 +516,6 @@ object FrASMCalculator: TFrASMCalculator
           OnKeyPress = lbledtASMTypedKeyPress
           OnKeyUp = lbledtASMTypedKeyUp
         end
-        object btnASMOperand2Result: TButton
-          Left = 106
-          Top = 0
-          Width = 14
-          Height = 15
-          Hint = 'Copy from Result'
-          Anchors = [akTop, akRight]
-          Caption = 'R'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -11
-          Font.Name = 'Tahoma'
-          Font.Style = [fsBold]
-          ParentFont = False
-          TabOrder = 2
-          OnClick = btnASMOperandResultClick
-        end
         object lbledtASMBinary2: TLabeledEdit
           Left = 36
           Top = 58
@@ -546,9 +527,25 @@ object FrASMCalculator: TFrASMCalculator
           EditLabel.Height = 13
           EditLabel.Caption = 'Binary'
           LabelPosition = lpLeft
-          TabOrder = 3
+          TabOrder = 2
           Text = '00000000010000000000000000000000'
           OnKeyPress = KeyPressReadOnly
+        end
+        object btnASMOperand2Result: TBitBtn
+          Left = 104
+          Top = 0
+          Width = 16
+          Height = 16
+          Hint = 'Copy from Result'
+          Anchors = [akTop, akRight]
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+          TabOrder = 3
+          OnClick = btnASMOperandResultClick
         end
       end
     end
