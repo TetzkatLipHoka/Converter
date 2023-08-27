@@ -92,8 +92,12 @@ KeyStone GUI with JumpLines and Label Support
 CapStone GUI with JumpLines and Label Support
 
 ![image](https://user-images.githubusercontent.com/10427286/212536712-94bdbf73-9bd0-4d45-a868-385c7dab00d4.png)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/c47cac2d-52b5-488d-ae11-29189be84eb3)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/5dee0f61-1309-498d-beba-5102e0dad517)
+
 
 Iced GUI with JumpLines and Label Support
+Reference- and Assembly-Scanning
 
 ![image](https://user-images.githubusercontent.com/10427286/212536930-47f928ff-7463-4958-a3f7-df13eae40974.png)
 ![image](https://user-images.githubusercontent.com/10427286/212536958-54ff8aba-688c-4fe2-8fab-d15f72ba5e94.png)
