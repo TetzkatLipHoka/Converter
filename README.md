@@ -28,12 +28,12 @@ Byte-Tools
   Compress/Decompress Files/Chunks
 
 
-![image](https://user-images.githubusercontent.com/10427286/196573942-c57759a3-99da-4e5f-bcdc-23da487ad91e.png)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/0d5c4a46-122b-424b-b7bf-0b1f24622792)
 
 Assembly Calculator
 Obtain the result of a basic Assembly-Instruction, see the CPU/R-Flags and the resulting Jumps
 
-![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/620ac2d0-f4ad-48b3-8f12-c84d298327a5)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/b451bf51-7fc0-4bd6-a5d2-08c54d3d7a1e)
 
 Expression Calculator
 Calculate with Binary, Octal, Decimal or Hexadecimal Values
@@ -82,16 +82,16 @@ Color Mixer and Conversions
 Pick the Color under the Mouse-Cursor
 
 
-![image](https://user-images.githubusercontent.com/10427286/196574067-921221ac-82ad-415b-81bf-cc3d854ec230.png)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/2eafa56d-616a-47a0-aa67-15d8cdd1da29)
 
 KeyStone GUI with JumpLines and Label Support
 
 
-![image](https://user-images.githubusercontent.com/10427286/196574253-fe9c665f-7320-4217-92ca-994e909cad72.png)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/d52f12d8-96df-46c6-b3f0-c80000c91846)
 
 CapStone GUI with JumpLines and Label Support
 
-![image](https://user-images.githubusercontent.com/10427286/212536712-94bdbf73-9bd0-4d45-a868-385c7dab00d4.png)
+![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/c9ea5858-d742-4197-9cf7-eeba9e05bdfe)
 ![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/c47cac2d-52b5-488d-ae11-29189be84eb3)
 ![image](https://github.com/TetzkatLipHoka/Converter/assets/10427286/5dee0f61-1309-498d-beba-5102e0dad517)
 
