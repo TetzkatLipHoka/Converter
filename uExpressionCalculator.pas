@@ -50,7 +50,7 @@ uses
   ;
 
 type
-  TToken = (
+  TExpressionCalculatorToken = (
     { } tkEOF, tkERROR, tkASSIGN,
     {7} tkLBRACE, tkRBRACE, tkNUMBER, tkIDENT, tkSEMICOLON,
     {6} tkPower,
@@ -61,81 +61,102 @@ type
     {1} tkOR, tkXOR, tkAND
   );
 
-  TCalcCBType = ( ctGetValue, ctSetValue, ctFunction );
-  TCalcCBProc = function( ctype: TCalcCBType; const S: String; var Value: Double ): Boolean of object;
+  TExpressionCalculatorMode = ( ecmSigned, ecmUnsigned, ecmDouble );
 
-  PNamedVar = ^TNamedVar;
-  TNamedVar = record
-    Value : Double;
+  TExpressionCalculatorValue = packed record
+    case Integer of
+      0 : ( Int64  : Int64 );
+      1 : ( UInt64 : UInt64 );
+      2 : ( Double : Double );
+  end;
+
+  TExpressionCalculatorCallbackType = ( ctGetValue, ctSetValue, ctFunction );
+  TExpressionCalculatorCallback = function( ctype: TExpressionCalculatorCallbackType; const S: String; var Value: TExpressionCalculatorValue ): Boolean of object;
+
+  TExpressionCalculatorNamedVariable = record
+    Value : TExpressionCalculatorValue;
     Name  : array [ 0..0 ] of Char;
   end;
+  PExpressionCalculatorNamedVariable = ^TExpressionCalculatorNamedVariable;
 
   TExpressionCalculator = class( TPersistent )
   private
     fLastError  : String;
     fPtr        : PChar;
-    fResult     : Double;
+    fMode       : TExpressionCalculatorMode;
+    fResult     : TExpressionCalculatorValue;
     fsValue     : String;
-    fToken      : TToken;
-    fCalcProc   : TCalcCBProc;
+    fToken      : TExpressionCalculatorToken;
+    fCalcProc   : TExpressionCalculatorCallback;
     FExpression : String;
     FVars       : TList;
     { Default calculator callback proc }
-    function    CalcProc( ctype: TCalcCBType; const S: String; var V: Double ): Boolean;
+    function    CalcProc( ctype: TExpressionCalculatorCallbackType; const S: String; var V: TExpressionCalculatorValue ): Boolean;
     { Calculate functions }
-    function    Calculate( const Expression: String; var R: Double; Proc: TCalcCBProc = nil ): Integer; overload;
-    function    start( var R: Double ) : Integer;
+    function    start( var R: TExpressionCalculatorValue ) : Integer;
     function    Lex : Integer;
-    function    term( var R: Double ) : Integer;
-    function    Expression1( var R: Double ) : Integer;
-    function    Expression2( var R: Double ) : Integer;
-    function    Expression3( var R: Double ) : Integer;
-    function    Expression4( var R: Double ) : Integer;
-    function    Expression5( var R: Double ) : Integer;
-    function    Expression6( var R: Double ) : Integer;
+    function    term( var R: TExpressionCalculatorValue ) : Integer;
+    function    Expression1( var R: TExpressionCalculatorValue ) : Integer;
+    function    Expression2( var R: TExpressionCalculatorValue ) : Integer;
+    function    Expression3( var R: TExpressionCalculatorValue ) : Integer;
+    function    Expression4( var R: TExpressionCalculatorValue ) : Integer;
+    function    Expression5( var R: TExpressionCalculatorValue ) : Integer;
+    function    Expression6( var R: TExpressionCalculatorValue ) : Integer;
 
-    function    GetResult: Double;
-    function    GetVar( const Name: String ): Double;
-    procedure   SetVar( const Name: String; value: Double );
+    function    GetResult: TExpressionCalculatorValue;
+    function    GetVar( const Name: String ): TExpressionCalculatorValue;
+    procedure   SetVar( const Name: String; value: TExpressionCalculatorValue );
   protected
-    function    Callback( ctype: TCalcCBType; const Name: String; var Res: Double ): Boolean;
+    function    Callback( ctype: TExpressionCalculatorCallbackType; const Name: String; var Res: TExpressionCalculatorValue ): Boolean;
   public
     constructor Create;
     destructor  Destroy; override;
     function    NameOf( Index: Word ): String;
     procedure   ClearVars;
-    property    Vars[ const Name: String ]: Double read GetVar Write SetVar;
+    property    Vars[ const Name: String ]: TExpressionCalculatorValue read GetVar Write SetVar;
     property    LastError  : String read fLastError;
-    function    Calculate( var R: Double; const Expression: String = '' ): Integer; overload;
+    function    Calculate( var R: TExpressionCalculatorValue; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer; overload;
+    function    CalculateSigned( var Value: Int64; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+    function    CalculateUnSigned( var Value: UInt64; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+    function    CalculateDouble( var Value: Double; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer; overload;
   published
-    property    Expression : String read FExpression Write FExpression;
-    property    Result     : Double read GetResult;
+    property    Mode       : TExpressionCalculatorMode  read fMode       write fMode;
+    property    Expression : String                     read FExpression write FExpression;
+    property    Result     : TExpressionCalculatorValue read GetResult;
   end;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   TFrExpressionCalculator = class(TFrame)
+    pnlMain: TPanel;
     grpExpression: TGroupBox;
     edtExpression: TEdit;
     btnClear: TButton;
     pnlResultTop: TPanel;
+    splResultTop: TSplitter;
     grpOctal: TGroupBox;
     edtOctal: TEdit;
     grpBinary: TGroupBox;
     edtBinary: TEdit;
-    splResultTop: TSplitter;
     pnlResultBottom: TPanel;
+    splResultBottom: TSplitter;
     grpDecimal: TGroupBox;
     edtDecimal: TEdit;
-    splResultBottom: TSplitter;
     grpHexadecimal: TGroupBox;
     edtHexadecimal: TEdit;
     grpHistory: TGroupBox;
+    rgMode: TRadioGroup;
+    pnlHelp: TPanel;
+    mmoHelp: TMemo;
+    pnlHelpButton: TPanel;
+    btnHelp: TButton;
     procedure   edtExpressionChange(Sender: TObject);
     procedure   KeyPressReadOnly(Sender: TObject; var Key: Char);
     procedure   edtExpressionKeyPress(Sender: TObject; var Key: Char);
     procedure   btnClearClick(Sender: TObject);
     procedure   HistoryOnDblClick(Sender : TObject);
     procedure   FrameResize(Sender: TObject);
+    procedure rgModeClick(Sender: TObject);
+    procedure btnHelpClick(Sender: TObject);
   private
     { Private declarations }
     fCalculator : TExpressionCalculator;
@@ -174,13 +195,14 @@ begin
   inherited Create;
   FVars := TList.Create;
 
-  fPtr        := nil;
-  fResult     := 0;
-  fsValue     := '';
-  fToken      := tkERROR;
-  fCalcProc   := CalcProc;
-  FExpression := '';
-  fLastError  := '';
+  fPtr          := nil;
+  fMode         := ecmSigned;
+  fResult.Int64 := 0;
+  fsValue       := '';
+  fToken        := tkERROR;
+  fCalcProc     := CalcProc;
+  FExpression   := '';
+  fLastError    := '';
 end;
 
 destructor TExpressionCalculator.Destroy;
@@ -190,58 +212,180 @@ begin
   inherited;
 end;
 
-function TExpressionCalculator.CalcProc( ctype: TCalcCBType; const S: String; var V: Double ): Boolean;
+function TExpressionCalculator.CalcProc( ctype: TExpressionCalculatorCallbackType; const S: String; var V: TExpressionCalculatorValue ): Boolean;
 begin
   Result := TRUE;
   case ctype of
     ctGetValue: begin
                 if S = 'pi' then
-                  V := Pi
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := Pi
+                  else
+                    result := False;
+                  end
                 else if S = 'e' then
-                  V := 2.718281828
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := 2.718281828
+                  else
+                    result := False;
+                  end
                 else
                   Result := FALSE;
                 end;
     ctSetValue: Result := FALSE;
     ctFunction: begin
                 if S = 'round' then
-                  V := Round( V )
+                  begin
+//                  if ( fMode = ecmSigned ) then
+//                  else if ( fMode = ecmUnSigned ) then
+//                  else //if ( fMode = ecmDouble ) then
+                    V.Double := Round( V.Double );
+                  end
                 else if S = 'trunc' then
-                  V := Trunc( V )
+                  begin
+//                  if ( fMode = ecmSigned ) then
+//                  else if ( fMode = ecmUnSigned ) then
+//                  else //if ( fMode = ecmDouble ) then
+                    V.Double := Trunc( V.Double );
+                  end
                 else if S = 'int' then
-                  V := Int( V )
+                  begin
+//                  if ( fMode = ecmSigned ) then
+//                  else if ( fMode = ecmUnSigned ) then
+//                  else //if ( fMode = ecmDouble ) then
+                    V.Double := Int( V.Double );
+                  end
                 else if S = 'frac' then
-                  V := Frac( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    V.Int64 := 0
+                  else if ( fMode = ecmUnSigned ) then
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    V.UInt64 := 0
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := Frac( V.Double );
+                  end
                 else if S = 'sin' then
-                  V := sin( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    result := false
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := sin( V.Double );
+                  end
                 else if S = 'cos' then
-                  V := cos( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    result := false
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := cos( V.Double );
+                  end
                 else if S = 'tan' then
-                  V := sin( V )/cos( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    result := false
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := sin( V.Double ) / cos( V.Double );
+                  end
                 else if S = 'atan' then
-                  V := arctan( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    result := false
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := arctan( V.Double );
+                  end
                 else if S = 'ln' then
-                  V := ln( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    result := false
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := ln( V.Double );
+                  end
                 else if S = 'exp' then
-                  V := exp( V )
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    result := false
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    V.Double := exp( V.Double );
+                  end
                 else if S = 'sign' then
                   begin
-                  if ( V>0 ) then
-                    V := 1
-                  else if( V<0 ) then
-                    V := -1
+                  if ( fMode = ecmSigned ) then
+                    begin
+                    if ( V.Int64 > 0 ) then
+                      V.Int64 := 1
+                    else if ( V.Int64 < 0 ) then
+                      V.Int64 := -1;
+                    end
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+                  else //if ( fMode = ecmDouble ) then
+                    begin
+                    if ( V.Double > 0 ) then
+                      V.Double := 1
+                    else if ( V.Double < 0 ) then
+                      V.Double := -1;
+                    end;
                   end
                 else if S = 'sgn' then
                   begin
-                  if ( V>0 ) then
-                    V := 1
-                  else if( V<0 ) then
-                    V := 0
+                  if ( fMode = ecmSigned ) then
+                    begin
+                    if ( V.Int64 > 0 ) then
+                      V.Int64 := 1
+                    else if ( V.Int64 < 0 ) then
+                      V.Int64 := 0;
+                    end
+                  else if ( fMode = ecmUnSigned ) then
+                    begin
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    if ( V.UInt64 > 0 ) then
+                      V.UInt64 := 1
+                    else if ( V.UInt64 < 0 ) then
+                      V.UInt64 := 0;
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    end
+                  else //if ( fMode = ecmDouble ) then
+                    begin
+                    if ( V.Double > 0 ) then
+                      V.Double := 1
+                    else if ( V.Double < 0 ) then
+                      V.Double := 0;
+                    end;
                   end
                 else if S = 'xsgn' then
                   begin
-                  if( V<0 ) then
-                    V := 0
+                  if ( fMode = ecmSigned ) then
+                    begin
+                    if ( V.Int64 < 0 ) then
+                      V.Int64 := 0;
+                    end
+                  else if ( fMode = ecmUnSigned ) then
+                    begin
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    if ( V.UInt64 < 0 ) then
+                      V.UInt64 := 0;
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    end
+                  else //if ( fMode = ecmDouble ) then
+                    begin
+                    if ( V.Double < 0 ) then
+                      V.Double := 0;
+                    end;
                   end
                 else
                   Result := FALSE;
@@ -255,7 +399,9 @@ function TExpressionCalculator.lex : Integer;
   var
     c: Byte;
   begin
-    fResult := 0;
+    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+    fResult.UInt64 := 0;
+    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
     if ( first^ = '' ) then
       begin
       result := False;
@@ -272,7 +418,16 @@ function TExpressionCalculator.lex : Integer;
         end;
       if ( c >= base ) then
         break;
-      fResult := fResult * base + c;
+
+      if ( fMode = ecmSigned ) then
+        fResult.Int64 := fResult.Int64 * base + c
+      else if ( fMode = ecmUnSigned ) then
+        {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+        fResult.UInt64 := fResult.UInt64 * base + c
+        {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+      else // if ( fMode = ecmDouble ) then
+        fResult.Double := fResult.Double * base + c;
+
       Inc( first );
       end;
     Result := ( first = last );
@@ -427,74 +582,101 @@ begin
     { match degree number }
     if ( fPtr^ = '`' ) then
       begin
-      fResult := fResult * Pi / 180.0;
-      Inc( fPtr ); frac := 0;
-      while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+      if ( fMode = ecmDouble ) then
         begin
-        frac := frac * 10 + ( Ord( fPtr^ ) - Ord( '0' ) );
+        fResult.Double := fResult.Double * Pi / 180.0;
         Inc( fPtr );
-        end;
-      fResult := fResult + ( frac * Pi / 180.0 / 60 );
-      if ( fPtr^ = '`' ) then
-        begin
-        Inc( fPtr ); frac := 0;
+        frac := 0;
         while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
           begin
           frac := frac * 10 + ( Ord( fPtr^ ) - Ord( '0' ) );
           Inc( fPtr );
           end;
-        fResult := fResult + ( frac * Pi / 180.0 / 60 / 60 );
+        fResult.Double := fResult.Double + ( frac * Pi / 180.0 / 60 );
+        if ( fPtr^ = '`' ) then
+          begin
+          Inc( fPtr ); frac := 0;
+          while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+            begin
+            frac := frac * 10 + ( Ord( fPtr^ ) - Ord( '0' ) );
+            Inc( fPtr );
+            end;
+          fResult.Double := fResult.Double + ( frac * Pi / 180.0 / 60 / 60 );
+          end;
+        fResult.Double := fResult.Double - Int( fResult.Double / 2*Pi ) * 2*Pi;
+        end
+      else
+        begin
+        fToken := tkERROR;
+        result := -1;
         end;
-      fResult := fResult - Int( fResult / 2*Pi ) * 2*Pi;
+
       Exit;
       end;
 
     { match float numbers }
     if ( fPtr^ = '.' ) then
       begin
-      Inc( fPtr );
-      frac := 1;
-      while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
-         begin
-        frac := frac / 10;
-        fResult := fResult + frac * ( Ord( fPtr^ ) - Ord( '0' ) );
+      if ( fMode = ecmDouble ) then
+        begin
         Inc( fPtr );
+        frac := 1;
+        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+           begin
+          frac := frac / 10;
+          fResult.Double := fResult.Double + frac * ( Ord( fPtr^ ) - Ord( '0' ) );
+          Inc( fPtr );
+          end;
+        end
+      else
+        begin
+        fToken := tkERROR;
+        result := -1;
         end;
       end;
 
     if {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ 'E', 'e' ] ) then
       begin
-      Inc( fPtr );
-      exp := 0;
-      sign := fPtr^;
-      if {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '+', '-' ] ) then
+      if ( fMode = ecmDouble ) then
+        begin
         Inc( fPtr );
-      if not {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) then
+        exp := 0;
+        sign := fPtr^;
+        if {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '+', '-' ] ) then
+          Inc( fPtr );
+        if not {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) then
+          begin
+          fToken := tkERROR;
+          result := -1;
+          Exit;
+          end;
+        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+          begin
+          exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
+          Inc( fPtr );
+          end;
+        if ( exp = 0 ) then
+          fResult.Double := 1.0
+        else if ( sign = '-' ) then
+          while exp > 0 do
+            begin
+            fResult.Double := fResult.Double * 10;
+            Dec( exp );
+            end
+        else
+          while exp > 0 do
+            begin
+            fResult.Double := fResult.Double / 10;
+            Dec( exp );
+            end
+        end
+      else
         begin
         fToken := tkERROR;
         result := -1;
-        Exit;
         end;
-      while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
-        begin
-        exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
-        Inc( fPtr );
-        end;
-      if ( exp = 0 ) then
-        fResult := 1.0
-      else if ( sign = '-' ) then
-        while exp > 0 do
-          begin
-          fResult := fResult * 10;
-          Dec( exp );
-          end
-      else
-        while exp > 0 do
-          begin
-          fResult := fResult / 10;
-          Dec( exp );
-          end
       end;
+
     Exit;
     end;
 
@@ -615,7 +797,7 @@ end;
 // Expression1: term ** term
 // term: tkNUMBER | tkIDENT | ( start ) | tkIDENT( start ) | tkIDENT = start;
 //
-function TExpressionCalculator.term( var R: Double ) : Integer;
+function TExpressionCalculator.term( var R: TExpressionCalculatorValue ) : Integer;
 var
   S: String;
 begin
@@ -690,31 +872,58 @@ begin
   end;
 end;
 
-function TExpressionCalculator.Expression1( var R: Double ) : Integer;
+function TExpressionCalculator.Expression1( var R: TExpressionCalculatorValue ) : Integer;
 var
-  V: Double;
+  V: TExpressionCalculatorValue;
 begin
   result := term( R );
   if ( result < 0 ) then
     Exit;
+
   if ( fToken = tkPower ) then
     begin
+//    if ( fMode <> ecmDouble ) then
+//      begin
+//      result := -1;
+//      Exit;
+//      end;
+
     result := lex;
     if ( result < 0 ) then
       Exit;
     result := term( V );
     if ( result < 0 ) then
       Exit;
-    if ( R = 0 ) then
-      R := 1.0
-    else
-      R := Exp( Ln( R )*V );
+
+    if ( fMode = ecmSigned ) then
+      begin
+      if ( R.Int64 = 0 ) then
+        R.Int64 := 1
+      else
+        R.Int64 := Round( Exp( Ln( R.Int64 )*V.Int64 ) );
+      end
+    else if ( fMode = ecmUnSigned ) then
+      begin
+      {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+      if ( R.UInt64 = 0 ) then
+        R.UInt64 := 1
+      else
+        R.UInt64 := Round( Exp( Ln( R.UInt64 )*V.UInt64 ) );
+      {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+      end
+    else //if ( fMode = ecmDouble ) then
+      begin
+      if ( R.Double = 0 ) then
+        R.Double := 1.0
+      else
+        R.Double := Exp( Ln( R.Double )*V.Double );
+      end;
     end;
 end;
 
-function TExpressionCalculator.Expression2( var R: Double ) : Integer;
+function TExpressionCalculator.Expression2( var R: TExpressionCalculatorValue ) : Integer;
 var
-  oldt: TToken;
+  oldt: TExpressionCalculatorToken;
 begin
   if ( fToken in [ tkNOT, tkInverse, tkADD, tkSUB ] ) then
     begin
@@ -727,24 +936,61 @@ begin
       Exit;
     case oldt of
       tkNOT: begin
-             if not( Boolean( Trunc( R ) ) ) then
-               R := 1.0
-             else
-               R := 0.0;
+             if ( fMode = ecmSigned ) then
+               begin
+               if not( Boolean( R.Int64 ) ) then
+                 R.Int64 := 1
+               else
+                 R.Int64 := 0;
+               end
+             else if ( fMode = ecmUnSigned ) then
+               begin
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               if not( Boolean( R.UInt64 ) ) then
+                 R.UInt64 := 1
+               else
+                 R.UInt64 := 0;
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               end
+             else //if ( fMode = ecmDouble ) then
+               begin
+               if not( Boolean( Trunc( R.Double ) ) ) then
+                 R.Double := 1.0
+               else
+                 R.Double := 0.0;
+               end;
              end;
-      tkInverse: R := ( not Trunc( R ) );
+      tkInverse: begin
+                 if ( fMode = ecmSigned ) then
+                   R.Int64 := ( not R.Int64 )
+                 else if ( fMode = ecmUnSigned ) then
+                   {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                   R.UInt64 := ( not R.UInt64 )
+                   {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                 else //if ( fMode = ecmDouble ) then
+                   R.Double := ( not Trunc( R.Double ) );
+                 end;
       tkADD: ;
-      tkSUB: R := -R;
+      tkSUB: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := -R.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := -R.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := -R.Double;
+             end;
     end;
     end
   else
     result := Expression1( R );
 end;
 
-function TExpressionCalculator.Expression3( var R: Double ) : Integer;
+function TExpressionCalculator.Expression3( var R: TExpressionCalculatorValue ) : Integer;
 var
-  V: Double;
-  oldt: TToken;
+  V: TExpressionCalculatorValue;
+  oldt: TExpressionCalculatorToken;
 begin
   result := Expression2( R );
   if ( result < 0 ) then
@@ -759,18 +1005,54 @@ begin
     if ( result < 0 ) then
       Exit;
     case oldt of
-      tkMUL: R := R * V;
-      tkDIV: R := R / V;
-      tkMOD: R := Trunc( R ) mod Trunc( V );
-      tkPER: R := R * V / 100.0;
+      tkMUL: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 * V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 * V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := R.Double * V.Double;
+             end;
+      tkDIV: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 div V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 div V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := R.Double / V.Double;
+             end;
+      tkMOD: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 mod V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 mod V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) mod Trunc( V.Double );
+             end;
+      tkPER: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 * V.Int64 div 100
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 * V.UInt64 div 100
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := R.Double * V.Double / 100.0;
+             end;
     end;
     end;
 end;
 
-function TExpressionCalculator.Expression4( var R: Double ) : Integer;
+function TExpressionCalculator.Expression4( var R: TExpressionCalculatorValue ) : Integer;
 var
-  V: Double;
-  oldt: TToken;
+  V: TExpressionCalculatorValue;
+  oldt: TExpressionCalculatorToken;
 begin
   result := Expression3( R );
   if ( result < 0 ) then
@@ -785,16 +1067,34 @@ begin
     if ( result < 0 ) then
       Exit;
     case oldt of
-      tkADD: R := R + V;
-      tkSUB: R := R - V;
+      tkADD: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 + V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 + V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := R.Double + V.Double;
+             end;
+      tkSUB: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 - V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 - V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := R.Double - V.Double;
+             end;
     end;
     end;
 end;
 
-function TExpressionCalculator.Expression5( var R: Double ) : Integer;
+function TExpressionCalculator.Expression5( var R: TExpressionCalculatorValue ) : Integer;
 var
-  V: Double;
-  oldt: TToken;
+  V: TExpressionCalculatorValue;
+  oldt: TExpressionCalculatorToken;
 begin
   result := Expression4( R );
   if ( result < 0 ) then
@@ -811,49 +1111,163 @@ begin
       Exit;
     case oldt of
       tkLess         : begin
-                       if ( R < V ) then
-                         R := 1.0
-                       else
-                         R := 0.0;
+                       if ( fMode = ecmSigned ) then
+                         begin
+                         if ( R.Int64 < V.Int64 ) then
+                           R.Int64 := 1
+                         else
+                           R.Int64 := 0;
+                         end
+                       else if ( fMode = ecmUnSigned ) then
+                         begin
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         if ( R.UInt64 < V.UInt64 ) then
+                           R.UInt64 := 1
+                         else
+                           R.UInt64 := 0;
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         end
+                       else //if ( fMode = ecmDouble ) then
+                         begin
+                         if ( R.Double < V.Double ) then
+                           R.Double := 1.0
+                         else
+                           R.Double := 0.0;
+                         end;
                        end;
       tkLessEqual    : begin
-                       if ( R <= V ) then
-                         R := 1.0
-                       else
-                         R := 0.0;
+                       if ( fMode = ecmSigned ) then
+                         begin
+                         if ( R.Int64 <= V.Int64 ) then
+                           R.Int64 := 1
+                         else
+                           R.Int64 := 0;
+                         end
+                       else if ( fMode = ecmUnSigned ) then
+                         begin
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         if ( R.UInt64 <= V.UInt64 ) then
+                           R.UInt64 := 1
+                         else
+                           R.UInt64 := 0;
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         end
+                       else //if ( fMode = ecmDouble ) then
+                         begin
+                         if ( R.Double <= V.Double ) then
+                           R.Double := 1.0
+                         else
+                           R.Double := 0.0;
+                         end;
                        end;
       tkEqual        : begin
-                       if ( R = V ) then
-                         R := 1.0
-                       else
-                         R := 0.0;
+                       if ( fMode = ecmSigned ) then
+                         begin
+                         if ( R.Int64 = V.Int64 ) then
+                           R.Int64 := 1
+                         else
+                           R.Int64 := 0;
+                         end
+                       else if ( fMode = ecmUnSigned ) then
+                         begin
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         if ( R.UInt64 = V.UInt64 ) then
+                           R.UInt64 := 1
+                         else
+                           R.UInt64 := 0;
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         end
+                       else //if ( fMode = ecmDouble ) then
+                         begin
+                         if ( R.Double = V.Double ) then
+                           R.Double := 1.0
+                         else
+                           R.Double := 0.0;
+                         end;
                        end;
       tkNotEqual     : begin
-                       if ( R <> V ) then
-                         R := 1.0
-                       else
-                         R := 0.0;
+                       if ( fMode = ecmSigned ) then
+                         begin
+                         if ( R.Int64 <> V.Int64 ) then
+                           R.Int64 := 1
+                         else
+                           R.Int64 := 0;
+                         end
+                       else if ( fMode = ecmUnSigned ) then
+                         begin
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         if ( R.UInt64 <> V.UInt64 ) then
+                           R.UInt64 := 1
+                         else
+                           R.UInt64 := 0;
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         end
+                       else //if ( fMode = ecmDouble ) then
+                         begin
+                         if ( R.Double <> V.Double ) then
+                           R.Double := 1.0
+                         else
+                           R.Double := 0.0;
+                         end;
                        end;
       tkGreaterEqual : begin
-                       if ( R >= V ) then
-                         R := 1.0
-                       else
-                         R := 0.0;
+                       if ( fMode = ecmSigned ) then
+                         begin
+                         if ( R.Int64 >= V.Int64 ) then
+                           R.Int64 := 1
+                         else
+                           R.Int64 := 0;
+                         end
+                       else if ( fMode = ecmUnSigned ) then
+                         begin
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         if ( R.UInt64 >= V.UInt64 ) then
+                           R.UInt64 := 1
+                         else
+                           R.UInt64 := 0;
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         end
+                       else //if ( fMode = ecmDouble ) then
+                         begin
+                         if ( R.Double >= V.Double ) then
+                           R.Double := 1.0
+                         else
+                           R.Double := 0.0;
+                         end;
                        end;
       tkGreater      : begin
-                       if ( R > V ) then
-                         R := 1.0
-                       else
-                         R := 0.0;
+                       if ( fMode = ecmSigned ) then
+                         begin
+                         if ( R.Int64 > V.Int64 ) then
+                           R.Int64 := 1
+                         else
+                           R.Int64 := 0;
+                         end
+                       else if ( fMode = ecmUnSigned ) then
+                         begin
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         if ( R.UInt64 > V.UInt64 ) then
+                           R.UInt64 := 1
+                         else
+                           R.UInt64 := 0;
+                         {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                         end
+                       else //if ( fMode = ecmDouble ) then
+                         begin
+                         if ( R.Double > V.Double ) then
+                           R.Double := 1.0
+                         else
+                           R.Double := 0.0;
+                         end;
                        end;
     end;
     end;
 end;
 
-function TExpressionCalculator.Expression6( var R: Double ) : Integer;
+function TExpressionCalculator.Expression6( var R: TExpressionCalculatorValue ) : Integer;
 var
-  V: Double;
-  oldt: TToken;
+  V: TExpressionCalculatorValue;
+  oldt: TExpressionCalculatorToken;
 begin
   result := Expression5( R );
   if ( result < 0 ) then
@@ -869,14 +1283,41 @@ begin
       Exit;
 
     case oldt of
-      tkOR : R := Trunc( R ) or  Trunc( V );
-      tkAND: R := Trunc( R ) and Trunc( V );
-      tkXOR: R := Trunc( R ) xor Trunc( V );
+      tkOR : begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 or V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 or V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) or Trunc( V.Double );
+             end;
+      tkAND: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 and V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 and V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) and Trunc( V.Double );
+             end;
+      tkXOR: begin
+             if ( fMode = ecmSigned ) then
+               R.Int64 := R.Int64 xor V.Int64
+             else if ( fMode = ecmUnSigned ) then
+               {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+               R.UInt64 := R.UInt64 xor V.UInt64
+               {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+             else //if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) xor Trunc( V.Double );
+             end;
     end;
     end;
 end;
 
-function TExpressionCalculator.start( var R: Double ) : Integer;
+function TExpressionCalculator.start( var R: TExpressionCalculatorValue ) : Integer;
 begin
   result := Expression6( R );
   if ( result < 0 ) then
@@ -896,18 +1337,21 @@ begin
     result := 0;
 end;
 
-function TExpressionCalculator.Calculate( const Expression: String; var R: Double; Proc: TCalcCBProc = nil ): Integer;
+function TExpressionCalculator.Calculate( var R: TExpressionCalculatorValue; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
 {
   -1 = Syntax error
   -2 = Unknown function or variable, see LastError for Name
 }
 begin
+  if ( Expression = '' ) then
+    Expression := FExpression;
+
   if ( @Proc = Nil ) then
     fCalcProc := CalcProc
   else
     fCalcProc := Proc;
 
-  R := 0;
+  R.Int64 := 0;
 
   fLastError := '';
   if ( Expression = '' ) then
@@ -923,19 +1367,69 @@ begin
   Result := start( R );
 end;
 
-function TExpressionCalculator.Calculate( var R: Double; const Expression: String = '' ): Integer;
+function TExpressionCalculator.CalculateSigned( var Value: Int64; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+var
+  M : TExpressionCalculatorMode;
+  R : TExpressionCalculatorValue;
 begin
-  if ( Expression <> '' ) then
-    Result := Calculate( Expression, R )
-  else
-    Result := Calculate( FExpression, R );
+  M := fMode;
+  fMode := ecmSigned;
+  Result := Calculate( R, Expression, Proc );
+  fMode := M;
+  if ( result < 0 ) then
+    begin
+    Value := 0;
+    Exit;
+    end;
+
+  Value := R.Int64;
+end;
+
+function TExpressionCalculator.CalculateUnSigned( var Value: UInt64; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+var
+  M : TExpressionCalculatorMode;
+  R : TExpressionCalculatorValue;
+begin
+  M := fMode;
+  fMode := ecmUnSigned;
+  Result := Calculate( R, Expression, Proc );
+  fMode := M;
+  if ( result < 0 ) then
+    begin
+    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+    Value := 0;
+    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+    Exit;
+    end;
+
+  {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+  Value := R.UInt64;
+  {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+end;
+
+function TExpressionCalculator.CalculateDouble( var Value: Double; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+var
+  M : TExpressionCalculatorMode;
+  R : TExpressionCalculatorValue;
+begin
+  M := fMode;
+  fMode := ecmDouble;
+  Result := Calculate( R, Expression, Proc );
+  fMode := M;
+  if ( result < 0 ) then
+    begin
+    Value := 0;
+    Exit;
+    end;
+
+  Value := R.Double;
 end;
 
 // TExpressionCalculator component
-procedure TExpressionCalculator.SetVar( const Name: String; value: Double );
+procedure TExpressionCalculator.SetVar( const Name: String; value: TExpressionCalculatorValue );
 var
   i: SmallInt;
-  V: PNamedVar;
+  V: PExpressionCalculatorNamedVariable;
 begin
   i := 0;
   V := nil;
@@ -948,26 +1442,26 @@ begin
     end;
   if ( i = FVars.Count ) then
     begin
-    GetMem( V, sizeof( TNamedVar )+Length( Name ) );
+    GetMem( V, sizeof( TExpressionCalculatorNamedVariable )+Length( Name ) );
     FVars.Add( V );
     StrPCopy( V^.Name, Name )
     end;
   V^.Value := Value;
 end;
 
-function TExpressionCalculator.GetVar( const Name: String ): Double;
+function TExpressionCalculator.GetVar( const Name: String ): TExpressionCalculatorValue;
 var
   i: SmallInt;
-  V: PNamedVar;
+  V: PExpressionCalculatorNamedVariable;
 begin
-  result := 0;
+  result.Int64 := 0;
   fLastError := '';
   for i := 0 to FVars.Count-1 do
     begin
     V := FVars[ i ];
     if StrComp( V^.Name, PChar( Name ) ) = 0 then
       begin
-      Result := V^.Value;
+      Result.Int64 := V^.Value.Int64;
       Exit;
       end;
     end;
@@ -975,12 +1469,12 @@ begin
 //  result     := -2;
 end;
 
-function TExpressionCalculator.GetResult: Double;
+function TExpressionCalculator.GetResult: TExpressionCalculatorValue;
 begin
-  calculate( FExpression, Result, Callback );
+  calculate( Result, FExpression, Callback );
 end;
 
-function TExpressionCalculator.Callback( ctype: TCalcCBType; const Name: String; var Res: Double ): Boolean;
+function TExpressionCalculator.Callback( ctype: TExpressionCalculatorCallbackType; const Name: String; var Res: TExpressionCalculatorValue ): Boolean;
 begin
   Result := CalcProc( ctype, name, Res );
   if Result then
@@ -995,18 +1489,18 @@ end;
 
 function TExpressionCalculator.NameOf( Index: Word ): String;
 begin
-  Result := StrPas( PNamedVar( FVars[ Index ] )^.Name );
+  Result := StrPas( PExpressionCalculatorNamedVariable( FVars[ Index ] )^.Name );
 end;
 
 procedure TExpressionCalculator.ClearVars;
 var
   i: Integer;
-  V: PNamedVar;
+  V: PExpressionCalculatorNamedVariable;
 begin
   for i := 0 to FVars.Count-1 do
     begin
     V := FVars[ i ];
-    FreeMem( V, sizeof( TNamedVar )+StrLen( V^.Name ) );
+    FreeMem( V, sizeof( TExpressionCalculatorNamedVariable )+StrLen( V^.Name ) );
     FVars[ i ] := Nil;
     end;
   FVars.Clear;
@@ -1073,6 +1567,32 @@ begin
   {$ELSE}
   Key := #0;
   {$ENDIF uTLH_ComponentTools}
+end;
+
+procedure TFrExpressionCalculator.rgModeClick(Sender: TObject);
+begin
+  if ( TRadioGroup( Sender ).ItemIndex < 0 ) then
+    Exit;
+  fCalculator.Mode := TExpressionCalculatorMode( TRadioGroup( Sender ).ItemIndex );
+  edtExpressionChange( edtExpression );
+end;
+
+procedure TFrExpressionCalculator.btnHelpClick(Sender: TObject);
+const
+  DEFAULT_WIDTH = 260;
+begin
+  if ( pnlHelp.Width = pnlHelpButton.Width ) then
+    begin
+    pnlHelp.Width := DEFAULT_WIDTH;
+    TButton( Sender ).Caption := '>';
+    end
+  else
+    begin
+    pnlHelp.Width := pnlHelpButton.Width;
+    TButton( Sender ).Caption := '<';
+    end;
+
+  FrameResize( Sender );
 end;
 
 procedure TFrExpressionCalculator.edtExpressionChange(Sender: TObject);
@@ -1194,8 +1714,7 @@ procedure TFrExpressionCalculator.edtExpressionChange(Sender: TObject);
       end;
   end;
 var
-  D    : Double;
-  I    : Int64;
+  D    : TExpressionCalculatorValue;
   S    : String;
   sHex : String;
 begin
@@ -1203,17 +1722,20 @@ begin
   fResult := fCalculator.Calculate( D );
   case fResult of
      0 : begin
-         I := Trunc( D );
-         if ( I = D ) then
-           begin
-           S := Format( '%d', [ I ] );
-           sHex := PointerToHex( @I, SizeOf( I ) );
-           end
-         else
-           begin
-           S := Format( '%f', [ D ] );
-           sHex := PointerToHex( @D, SizeOf( D ) );
-           end;
+         case fCalculator.Mode of
+           ecmSigned   : begin
+                         S := IntToStr( D.Int64 );
+                         sHex := PointerToHex( @D.Int64, SizeOf( D.Int64 ) );
+                         end;
+           ecmUnsigned : begin
+                         S := UIntToStr( D.UInt64 );
+                         sHex := PointerToHex( @D.UInt64, SizeOf( D.UInt64 ) );
+                         end;
+           ecmDouble   : begin
+                         S := Format( '%f', [ D.Double ] );
+                         sHex := PointerToHex( @D.Double, SizeOf( D.Double ) );
+                         end;
+         end;
 
          while ( Copy( sHex, 1, 2 ) = '00' ) AND ( Length( sHex ) > 2 ) do
            sHex := Copy( sHex, 3, Length( sHex )-2 );
@@ -1325,6 +1847,7 @@ begin
 end;
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 initialization
   Calculator    := TExpressionCalculator.Create;
   FrmCalculator := TFrmCalculator.CreateNew( Application );
