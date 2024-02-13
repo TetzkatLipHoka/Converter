@@ -28,6 +28,21 @@ unit uExpressionCalculator;
         ^ XOR (XOR)
         & AND (AND)
 
+  Functions
+    round
+    trunc
+    int
+    frac
+    sin
+    cos
+    tan
+    atan
+    ln
+    exp
+    sign
+    sgn
+    xsgn
+
   Error Codes
      0 = Success
     -1 = Syntax error
@@ -38,9 +53,16 @@ interface
 
 {$DEFINE uCheckStringGrid}
 {$DEFINE uTLH_ComponentTools}
+{$DEFINE BigNumbers}
 
 uses
   Classes, Controls, ExtCtrls, Forms, StdCtrls, Grids
+
+  {$IFDEF BigNumbers}
+  ,Velthuis.BigIntegers
+  ,Velthuis.BigDecimals
+  {$ENDIF BigNumbers}
+
   {$IFDEF uCheckStringGrid}
   ,uCheckStringGrid
   {$ENDIF uCheckStringGrid}
@@ -61,13 +83,29 @@ type
     {1} tkOR, tkXOR, tkAND
   );
 
-  TExpressionCalculatorMode = ( ecmSigned, ecmUnsigned, ecmDouble );
+  TExpressionCalculatorMode = (
+    ecmSigned,
+    ecmUnsigned,
+    ecmDouble
+    {$IFDEF BigNumbers}
+    ,ecmBigInteger
+    ,ecmBigDecimal
+    {$ENDIF BigNumbers}
+  );
 
   TExpressionCalculatorValue = packed record
+    {$IFDEF BigNumbers}
+    BigInteger : BigInteger;
+    BigDecimal : BigDecimal;
+    {$ENDIF BigNumbers}
     case Integer of
       0 : ( Int64  : Int64 );
       1 : ( UInt64 : UInt64 );
       2 : ( Double : Double );
+//    {$IFDEF BigNumbers}
+//      3 : ( BigInteger : BigInteger );
+//      4 : ( BigDecimal : BigDecimal );
+//    {$ENDIF BigNumbers}
   end;
 
   TExpressionCalculatorCallbackType = ( ctGetValue, ctSetValue, ctFunction );
@@ -119,6 +157,10 @@ type
     function    CalculateSigned( var Value: Int64; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
     function    CalculateUnSigned( var Value: UInt64; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
     function    CalculateDouble( var Value: Double; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer; overload;
+    {$IFDEF BigNumbers}
+    function    CalculateBigInteger( var Value: BigInteger; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer; overload;
+    function    CalculateBigDecimal( var Value: BigDecimal; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer; overload;
+    {$ENDIF BigNumbers}
   published
     property    Mode       : TExpressionCalculatorMode  read fMode       write fMode;
     property    Expression : String                     read FExpression write FExpression;
@@ -155,8 +197,8 @@ type
     procedure   btnClearClick(Sender: TObject);
     procedure   HistoryOnDblClick(Sender : TObject);
     procedure   FrameResize(Sender: TObject);
-    procedure rgModeClick(Sender: TObject);
-    procedure btnHelpClick(Sender: TObject);
+    procedure   rgModeClick(Sender: TObject);
+    procedure   btnHelpClick(Sender: TObject);
   private
     { Private declarations }
     fCalculator : TExpressionCalculator;
@@ -195,14 +237,19 @@ begin
   inherited Create;
   FVars := TList.Create;
 
-  fPtr          := nil;
-  fMode         := ecmSigned;
-  fResult.Int64 := 0;
-  fsValue       := '';
-  fToken        := tkERROR;
-  fCalcProc     := CalcProc;
-  FExpression   := '';
-  fLastError    := '';
+  fPtr               := nil;
+  fMode              := ecmSigned;
+  fResult.Int64      := 0;
+  {$IFDEF BigNumbers}
+  fResult.BigInteger.RoundingMode := rmRound;
+  fResult.BigInteger := 0;
+  fResult.BigDecimal := 0;
+  {$ENDIF BigNumbers}
+  fsValue            := '';
+  fToken             := tkERROR;
+  fCalcProc          := CalcProc;
+  FExpression        := '';
+  fLastError         := '';
 end;
 
 destructor TExpressionCalculator.Destroy;
@@ -221,6 +268,10 @@ begin
                   begin
                   if ( fMode = ecmDouble ) then
                     V.Double := Pi
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := Pi
+                  {$ENDIF BigNumbers}
                   else
                     result := False;
                   end
@@ -228,6 +279,10 @@ begin
                   begin
                   if ( fMode = ecmDouble ) then
                     V.Double := 2.718281828
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := 2.718281828
+                  {$ENDIF BigNumbers}
                   else
                     result := False;
                   end
@@ -240,22 +295,37 @@ begin
                   begin
 //                  if ( fMode = ecmSigned ) then
 //                  else if ( fMode = ecmUnSigned ) then
-//                  else //if ( fMode = ecmDouble ) then
-                    V.Double := Round( V.Double );
+                  if ( fMode = ecmDouble ) then
+                    V.Double := Round( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.RoundTo( 0 );
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'trunc' then
                   begin
 //                  if ( fMode = ecmSigned ) then
 //                  else if ( fMode = ecmUnSigned ) then
-//                  else //if ( fMode = ecmDouble ) then
-                    V.Double := Trunc( V.Double );
+                  if ( fMode = ecmDouble ) then
+                    V.Double := Trunc( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Int; //.Trunc;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'int' then
                   begin
 //                  if ( fMode = ecmSigned ) then
 //                  else if ( fMode = ecmUnSigned ) then
-//                  else //if ( fMode = ecmDouble ) then
-                    V.Double := Int( V.Double );
+                  if ( fMode = ecmDouble ) then
+                    V.Double := Int( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Int;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'frac' then
                   begin
@@ -265,8 +335,14 @@ begin
                     {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                     V.UInt64 := 0
                     {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := Frac( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := Frac( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    V.BigInteger := 0
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Frac;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'sin' then
                   begin
@@ -274,8 +350,14 @@ begin
                     result := false
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := sin( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := sin( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    result := false
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Sin;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'cos' then
                   begin
@@ -283,8 +365,14 @@ begin
                     result := false
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := cos( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := cos( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    result := false
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Cos;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'tan' then
                   begin
@@ -292,8 +380,15 @@ begin
                     result := false
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := sin( V.Double ) / cos( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := sin( V.Double ) / cos( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    result := false
+                  else if ( fMode = ecmBigDecimal ) then
+                    result := false
+//                    V.BigDecimal := V.BigDecimal.Tan; // MS
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'atan' then
                   begin
@@ -301,8 +396,15 @@ begin
                     result := false
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := arctan( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := arctan( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    result := false
+                  else if ( fMode = ecmBigDecimal ) then
+                    result := false
+//                    V.BigDecimal := V.BigDecimal.ArcTan; // MS
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'ln' then
                   begin
@@ -310,8 +412,14 @@ begin
                     result := false
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := ln( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := ln( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    result := false
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Ln;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'exp' then
                   begin
@@ -319,8 +427,19 @@ begin
                     result := false
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
-                    V.Double := exp( V.Double );
+                  else if ( fMode = ecmDouble ) then
+                    try
+                      V.Double := exp( V.Double );
+                    except
+                      V.Double := 0;
+                      fToken := tkERROR;
+                    end
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    result := false
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.exp.RoundTo( -2, rmNearestUp );
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'sign' then
                   begin
@@ -333,13 +452,29 @@ begin
                     end
                   else if ( fMode = ecmUnSigned ) then
                     result := false
-                  else //if ( fMode = ecmDouble ) then
+                  else if ( fMode = ecmDouble ) then
                     begin
                     if ( V.Double > 0 ) then
                       V.Double := 1
                     else if ( V.Double < 0 ) then
                       V.Double := -1;
+                    end
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    begin
+                    if ( V.BigInteger > 0 ) then
+                      V.BigInteger := 1
+                    else if ( V.BigInteger < 0 ) then
+                      V.BigInteger := -1;
+                    end
+                  else if ( fMode = ecmBigDecimal ) then
+                    begin
+                    if ( V.BigDecimal > 0 ) then
+                      V.BigDecimal := 1
+                    else if ( V.BigDecimal < 0 ) then
+                      V.BigDecimal := -1;
                     end;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'sgn' then
                   begin
@@ -359,13 +494,29 @@ begin
                       V.UInt64 := 0;
                     {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                     end
-                  else //if ( fMode = ecmDouble ) then
+                  else if ( fMode = ecmDouble ) then
                     begin
                     if ( V.Double > 0 ) then
                       V.Double := 1
                     else if ( V.Double < 0 ) then
                       V.Double := 0;
+                    end
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    begin
+                    if ( V.BigInteger > 0 ) then
+                      V.BigInteger := 1
+                    else if ( V.BigInteger < 0 ) then
+                      V.BigInteger := 0;
+                    end
+                  else if ( fMode = ecmBigDecimal ) then
+                    begin
+                    if ( V.BigDecimal > 0 ) then
+                      V.BigDecimal := 1
+                    else if ( V.BigDecimal < 0 ) then
+                      V.BigDecimal := 0;
                     end;
+                  {$ENDIF BigNumbers}
                   end
                 else if S = 'xsgn' then
                   begin
@@ -381,11 +532,23 @@ begin
                       V.UInt64 := 0;
                     {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                     end
-                  else //if ( fMode = ecmDouble ) then
+                  else if ( fMode = ecmDouble ) then
                     begin
                     if ( V.Double < 0 ) then
                       V.Double := 0;
+                    end
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    begin
+                    if ( V.BigInteger < 0 ) then
+                      V.BigInteger := 0
+                    end
+                  else if ( fMode = ecmBigDecimal ) then
+                    begin
+                    if ( V.BigDecimal < 0 ) then
+                      V.BigDecimal := 0;
                     end;
+                  {$ENDIF BigNumbers}
                   end
                 else
                   Result := FALSE;
@@ -402,6 +565,10 @@ function TExpressionCalculator.lex : Integer;
     {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
     fResult.UInt64 := 0;
     {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+    {$IFDEF BigNumbers}
+    fResult.BigInteger := 0;
+    fResult.BigDecimal := 0;
+    {$ENDIF BigNumbers}
     if ( first^ = '' ) then
       begin
       result := False;
@@ -425,8 +592,15 @@ function TExpressionCalculator.lex : Integer;
         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
         fResult.UInt64 := fResult.UInt64 * base + c
         {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
-      else // if ( fMode = ecmDouble ) then
-        fResult.Double := fResult.Double * base + c;
+      else if ( fMode = ecmDouble ) then
+        fResult.Double := fResult.Double * base + c
+      {$IFDEF BigNumbers}
+      else if ( fMode = ecmBigInteger ) then
+        fResult.BigInteger := fResult.BigInteger * base + c
+      else if ( fMode = ecmBigDecimal ) then
+        fResult.BigDecimal := fResult.BigDecimal * base + c
+      {$ENDIF BigNumbers}
+      ;
 
       Inc( first );
       end;
@@ -438,6 +612,7 @@ var
   exp: LongInt;
   s_pos: PChar;
   S : String;
+  bFail : boolean;
 begin
   result := 0;
   { skip blanks }
@@ -476,6 +651,8 @@ begin
   { match numbers }
   if {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9', 'A'..'H', 'a'..'h' ] ) then
     begin
+    bFail := False;
+
     { C like mathing }
     if ( fPtr^ = '0' ) then
       begin
@@ -574,9 +751,11 @@ begin
     { match simple decimal number }
     if not ConvertNumber( s_pos, fPtr, 10 ) then
       begin
-      fToken := tkERROR;
-      result := -1;
-      Exit;
+//      fToken := tkERROR;
+//      result := -1;
+//      Exit;
+      bFail := True;
+      Dec( fPtr );
       end;
 
     { match degree number }
@@ -595,7 +774,8 @@ begin
         fResult.Double := fResult.Double + ( frac * Pi / 180.0 / 60 );
         if ( fPtr^ = '`' ) then
           begin
-          Inc( fPtr ); frac := 0;
+          Inc( fPtr );
+          frac := 0;
           while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
             begin
             frac := frac * 10 + ( Ord( fPtr^ ) - Ord( '0' ) );
@@ -605,6 +785,33 @@ begin
           end;
         fResult.Double := fResult.Double - Int( fResult.Double / 2*Pi ) * 2*Pi;
         end
+      {$IFDEF BigNumbers}
+      else if ( fMode = ecmBigDecimal ) then
+        begin
+        fResult.BigDecimal := fResult.BigDecimal * Pi / 180.0;
+        Inc( fPtr );
+        frac := 0;
+        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+          begin
+          frac := frac * 10 + ( Ord( fPtr^ ) - Ord( '0' ) );
+          Inc( fPtr );
+          end;
+        fResult.BigDecimal := fResult.BigDecimal + ( frac * Pi / 180.0 / 60 );
+        if ( fPtr^ = '`' ) then
+          begin
+          Inc( fPtr );
+          frac := 0;
+          while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+            begin
+            frac := frac * 10 + ( Ord( fPtr^ ) - Ord( '0' ) );
+            Inc( fPtr );
+            end;
+          fResult.BigDecimal := fResult.BigDecimal + ( frac * Pi / 180.0 / 60 / 60 );
+          end;
+
+        fResult.BigDecimal := fResult.BigDecimal - ( fResult.BigDecimal / 2*Pi ).Int * 2*Pi;
+        end
+      {$ENDIF BigNumbers}
       else
         begin
         fToken := tkERROR;
@@ -615,19 +822,32 @@ begin
       end;
 
     { match float numbers }
-    if ( fPtr^ = '.' ) then
+    if ( fPtr^ = FormatSettings.DecimalSeparator{'.'} ) then
       begin
       if ( fMode = ecmDouble ) then
         begin
         Inc( fPtr );
         frac := 1;
         while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
-           begin
+          begin
           frac := frac / 10;
           fResult.Double := fResult.Double + frac * ( Ord( fPtr^ ) - Ord( '0' ) );
           Inc( fPtr );
           end;
         end
+      {$IFDEF BigNumbers}
+      else if ( fMode = ecmBigDecimal ) then
+        begin
+        Inc( fPtr );
+        frac := 1;
+        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+          begin
+          frac := frac / 10;
+          fResult.BigDecimal := fResult.BigDecimal + frac * ( Ord( fPtr^ ) - Ord( '0' ) );
+          Inc( fPtr );
+          end;
+        end
+      {$ENDIF BigNumbers}
       else
         begin
         fToken := tkERROR;
@@ -646,30 +866,77 @@ begin
           Inc( fPtr );
         if not {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) then
           begin
-          fToken := tkERROR;
-          result := -1;
-          Exit;
-          end;
-        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
-          begin
-          exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
-          Inc( fPtr );
-          end;
-        if ( exp = 0 ) then
-          fResult.Double := 1.0
-        else if ( sign = '-' ) then
-          while exp > 0 do
-            begin
-            fResult.Double := fResult.Double * 10;
-            Dec( exp );
-            end
+//          fToken := tkERROR;
+//          result := -1;
+//          Exit;
+
+          bFail := True;
+          Dec( fPtr );
+          end
         else
-          while exp > 0 do
+          begin
+          while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
             begin
-            fResult.Double := fResult.Double / 10;
-            Dec( exp );
-            end
+            exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
+            Inc( fPtr );
+            end;
+          if ( exp = 0 ) then
+            fResult.Double := 1.0
+          else if ( sign = '-' ) then
+            while exp > 0 do
+              begin
+              fResult.Double := fResult.Double * 10;
+              Dec( exp );
+              end
+          else
+            while exp > 0 do
+              begin
+              fResult.Double := fResult.Double / 10;
+              Dec( exp );
+              end
+            end;
         end
+      {$IFDEF BigNumbers}
+      else if ( fMode = ecmBigDecimal ) then
+        begin
+        Inc( fPtr );
+        exp := 0;
+        sign := fPtr^;
+        if {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '+', '-' ] ) then
+          Inc( fPtr );
+        if not {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) then
+          begin
+//          fToken := tkERROR;
+//          result := -1;
+//          Exit;
+
+          bFail := True;
+          Dec( fPtr );
+          end
+        else
+          begin
+          while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+            begin
+            exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
+            Inc( fPtr );
+            end;
+          if ( exp = 0 ) then
+            fResult.BigDecimal := 1.0
+          else if ( sign = '-' ) then
+            while exp > 0 do
+              begin
+              fResult.BigDecimal := fResult.BigDecimal * 10;
+              Dec( exp );
+              end
+          else
+            while exp > 0 do
+              begin
+              fResult.BigDecimal := fResult.BigDecimal / 10;
+              Dec( exp );
+              end;
+          end;
+        end
+      {$ENDIF BigNumbers}
       else
         begin
         fToken := tkERROR;
@@ -677,7 +944,8 @@ begin
         end;
       end;
 
-    Exit;
+    if NOT bFail then
+      Exit;
     end;
 
   { match identifiers }
@@ -911,13 +1179,29 @@ begin
         R.UInt64 := Round( Exp( Ln( R.UInt64 )*V.UInt64 ) );
       {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
       end
-    else //if ( fMode = ecmDouble ) then
+    else if ( fMode = ecmDouble ) then
       begin
       if ( R.Double = 0 ) then
         R.Double := 1.0
       else
         R.Double := Exp( Ln( R.Double )*V.Double );
-      end;
+      end
+    {$IFDEF BigNumbers}
+    else if ( fMode = ecmBigInteger ) then
+      begin
+      if ( R.BigInteger = 0 ) then
+        R.BigInteger := 1
+      else
+        R.BigInteger := R.BigInteger.Exp( R.BigInteger.Ln * V.BigInteger.AsInt64 );
+      end
+    else if ( fMode = ecmBigDecimal ) then
+      begin
+      if ( R.BigDecimal = 0 ) then
+        R.BigDecimal := 1.0
+      else
+        R.BigDecimal := R.BigDecimal.Exp( R.BigDecimal.Ln*V.BigDecimal ).RoundTo( -2, rmNearestUp );
+      end
+    {$ENDIF BigNumbers}
     end;
 end;
 
@@ -952,13 +1236,29 @@ begin
                  R.UInt64 := 0;
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                end
-             else //if ( fMode = ecmDouble ) then
+             else if ( fMode = ecmDouble ) then
                begin
                if not( Boolean( Trunc( R.Double ) ) ) then
                  R.Double := 1.0
                else
-                 R.Double := 0.0;
-               end;
+                 R.Double := 0.0
+               end
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               begin
+               if ( R.BigInteger = 0 ) then
+                 R.BigInteger := 1
+               else
+                 R.BigInteger := 0
+               end
+             else if ( fMode = ecmBigDecimal ) then
+               begin
+               if ( R.BigDecimal = 0 ) then
+                 R.BigDecimal := 1.0
+               else
+                 R.BigDecimal := 0.0
+               end
+             {$ENDIF BigNumbers}
              end;
       tkInverse: begin
                  if ( fMode = ecmSigned ) then
@@ -967,8 +1267,14 @@ begin
                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                    R.UInt64 := ( not R.UInt64 )
                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-                 else //if ( fMode = ecmDouble ) then
-                   R.Double := ( not Trunc( R.Double ) );
+                 else if ( fMode = ecmDouble ) then
+                   R.Double := ( not Trunc( R.Double ) )
+                 {$IFDEF BigNumbers}
+                 else if ( fMode = ecmBigInteger ) then
+                   R.BigInteger := R.BigInteger.Negate( R.BigInteger )
+                 else if ( fMode = ecmBigDecimal ) then
+                   R.BigDecimal := R.BigDecimal.Negate( R.BigDecimal.Int{Trunc} );
+                 {$ENDIF BigNumbers}
                  end;
       tkADD: ;
       tkSUB: begin
@@ -978,8 +1284,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := -R.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := -R.Double;
+             else if ( fMode = ecmDouble ) then
+               R.Double := -R.Double
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := -R.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := -R.BigDecimal;
+             {$ENDIF BigNumbers}
              end;
     end;
     end
@@ -1012,8 +1324,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 * V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := R.Double * V.Double;
+             else if ( fMode = ecmDouble ) then
+               R.Double := R.Double * V.Double
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger * V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal * V.BigDecimal;
+             {$ENDIF BigNumbers}
              end;
       tkDIV: begin
              if ( fMode = ecmSigned ) then
@@ -1022,8 +1340,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 div V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := R.Double / V.Double;
+             else if ( fMode = ecmDouble ) then
+               R.Double := R.Double / V.Double
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger div V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal / V.BigDecimal;
+             {$ENDIF BigNumbers}
              end;
       tkMOD: begin
              if ( fMode = ecmSigned ) then
@@ -1032,8 +1356,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 mod V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := Trunc( R.Double ) mod Trunc( V.Double );
+             else if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) mod Trunc( V.Double )
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger mod V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal mod V.BigDecimal;
+             {$ENDIF BigNumbers}
              end;
       tkPER: begin
              if ( fMode = ecmSigned ) then
@@ -1042,8 +1372,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 * V.UInt64 div 100
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := R.Double * V.Double / 100.0;
+             else if ( fMode = ecmDouble ) then
+               R.Double := R.Double * V.Double / 100.0
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger * V.BigInteger div 100
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal * V.BigDecimal / 100.0
+             {$ENDIF BigNumbers}
              end;
     end;
     end;
@@ -1074,8 +1410,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 + V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := R.Double + V.Double;
+             else if ( fMode = ecmDouble ) then
+               R.Double := R.Double + V.Double
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger + V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal + V.BigDecimal
+             {$ENDIF BigNumbers}
              end;
       tkSUB: begin
              if ( fMode = ecmSigned ) then
@@ -1084,8 +1426,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 - V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := R.Double - V.Double;
+             else if ( fMode = ecmDouble ) then
+               R.Double := R.Double - V.Double
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger - V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal - V.BigDecimal
+             {$ENDIF BigNumbers}
              end;
     end;
     end;
@@ -1127,13 +1475,29 @@ begin
                            R.UInt64 := 0;
                          {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                          end
-                       else //if ( fMode = ecmDouble ) then
+                       else if ( fMode = ecmDouble ) then
                          begin
                          if ( R.Double < V.Double ) then
                            R.Double := 1.0
                          else
                            R.Double := 0.0;
-                         end;
+                         end
+                       {$IFDEF BigNumbers}
+                       else if ( fMode = ecmBigInteger ) then
+                         begin
+                         if ( R.BigInteger < V.BigInteger ) then
+                           R.BigInteger := 1
+                         else
+                           R.BigInteger := 0;
+                         end
+                       else if ( fMode = ecmBigDecimal ) then
+                         begin
+                         if ( R.BigDecimal < V.BigDecimal ) then
+                           R.BigDecimal := 1.0
+                         else
+                           R.BigDecimal := 0.0;
+                         end
+                       {$ENDIF BigNumbers}
                        end;
       tkLessEqual    : begin
                        if ( fMode = ecmSigned ) then
@@ -1152,13 +1516,29 @@ begin
                            R.UInt64 := 0;
                          {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                          end
-                       else //if ( fMode = ecmDouble ) then
+                       else if ( fMode = ecmDouble ) then
                          begin
                          if ( R.Double <= V.Double ) then
                            R.Double := 1.0
                          else
                            R.Double := 0.0;
-                         end;
+                         end
+                       {$IFDEF BigNumbers}
+                       else if ( fMode = ecmBigInteger ) then
+                         begin
+                         if ( R.BigInteger <= V.BigInteger ) then
+                           R.BigInteger := 1
+                         else
+                           R.BigInteger := 0;
+                         end
+                       else if ( fMode = ecmBigDecimal ) then
+                         begin
+                         if ( R.BigDecimal <= V.BigDecimal ) then
+                           R.BigDecimal := 1.0
+                         else
+                           R.BigDecimal := 0.0;
+                         end
+                       {$ENDIF BigNumbers}
                        end;
       tkEqual        : begin
                        if ( fMode = ecmSigned ) then
@@ -1177,13 +1557,29 @@ begin
                            R.UInt64 := 0;
                          {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                          end
-                       else //if ( fMode = ecmDouble ) then
+                       else if ( fMode = ecmDouble ) then
                          begin
                          if ( R.Double = V.Double ) then
                            R.Double := 1.0
                          else
                            R.Double := 0.0;
-                         end;
+                         end
+                       {$IFDEF BigNumbers}
+                       else if ( fMode = ecmBigInteger ) then
+                         begin
+                         if ( R.BigInteger = V.BigInteger ) then
+                           R.BigInteger := 1
+                         else
+                           R.BigInteger := 0;
+                         end
+                       else if ( fMode = ecmBigDecimal ) then
+                         begin
+                         if ( R.BigDecimal = V.BigDecimal ) then
+                           R.BigDecimal := 1.0
+                         else
+                           R.BigDecimal := 0.0;
+                         end
+                       {$ENDIF BigNumbers}
                        end;
       tkNotEqual     : begin
                        if ( fMode = ecmSigned ) then
@@ -1202,13 +1598,29 @@ begin
                            R.UInt64 := 0;
                          {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                          end
-                       else //if ( fMode = ecmDouble ) then
+                       else if ( fMode = ecmDouble ) then
                          begin
                          if ( R.Double <> V.Double ) then
                            R.Double := 1.0
                          else
                            R.Double := 0.0;
-                         end;
+                         end
+                       {$IFDEF BigNumbers}
+                       else if ( fMode = ecmBigInteger ) then
+                         begin
+                         if ( R.BigInteger <> V.BigInteger ) then
+                           R.BigInteger := 1
+                         else
+                           R.BigInteger := 0;
+                         end
+                       else if ( fMode = ecmBigDecimal ) then
+                         begin
+                         if ( R.BigDecimal <> V.BigDecimal ) then
+                           R.BigDecimal := 1.0
+                         else
+                           R.BigDecimal := 0.0;
+                         end
+                       {$ENDIF BigNumbers}
                        end;
       tkGreaterEqual : begin
                        if ( fMode = ecmSigned ) then
@@ -1227,13 +1639,29 @@ begin
                            R.UInt64 := 0;
                          {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                          end
-                       else //if ( fMode = ecmDouble ) then
+                       else if ( fMode = ecmDouble ) then
                          begin
                          if ( R.Double >= V.Double ) then
                            R.Double := 1.0
                          else
                            R.Double := 0.0;
-                         end;
+                         end
+                       {$IFDEF BigNumbers}
+                       else if ( fMode = ecmBigInteger ) then
+                         begin
+                         if ( R.BigInteger >= V.BigInteger ) then
+                           R.BigInteger := 1
+                         else
+                           R.BigInteger := 0;
+                         end
+                       else if ( fMode = ecmBigDecimal ) then
+                         begin
+                         if ( R.BigDecimal >= V.BigDecimal ) then
+                           R.BigDecimal := 1.0
+                         else
+                           R.BigDecimal := 0.0;
+                         end
+                       {$ENDIF BigNumbers}
                        end;
       tkGreater      : begin
                        if ( fMode = ecmSigned ) then
@@ -1252,13 +1680,29 @@ begin
                            R.UInt64 := 0;
                          {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
                          end
-                       else //if ( fMode = ecmDouble ) then
+                       else if ( fMode = ecmDouble ) then
                          begin
                          if ( R.Double > V.Double ) then
                            R.Double := 1.0
                          else
                            R.Double := 0.0;
-                         end;
+                         end
+                       {$IFDEF BigNumbers}
+                       else if ( fMode = ecmBigInteger ) then
+                         begin
+                         if ( R.BigInteger > V.BigInteger ) then
+                           R.BigInteger := 1
+                         else
+                           R.BigInteger := 0;
+                         end
+                       else if ( fMode = ecmBigDecimal ) then
+                         begin
+                         if ( R.BigDecimal > V.BigDecimal ) then
+                           R.BigDecimal := 1.0
+                         else
+                           R.BigDecimal := 0.0;
+                         end
+                       {$ENDIF BigNumbers}
                        end;
     end;
     end;
@@ -1290,8 +1734,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 or V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := Trunc( R.Double ) or Trunc( V.Double );
+             else if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) or Trunc( V.Double )
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger or V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal.AsBigInteger{Trunc} or V.BigDecimal.AsBigInteger{Trunc}
+             {$ENDIF BigNumbers}
              end;
       tkAND: begin
              if ( fMode = ecmSigned ) then
@@ -1300,8 +1750,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 and V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := Trunc( R.Double ) and Trunc( V.Double );
+             else if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) and Trunc( V.Double )
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger and V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal.AsBigInteger{Trunc} and V.BigDecimal.AsBigInteger{Trunc}
+             {$ENDIF BigNumbers}
              end;
       tkXOR: begin
              if ( fMode = ecmSigned ) then
@@ -1310,8 +1766,14 @@ begin
                {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
                R.UInt64 := R.UInt64 xor V.UInt64
                {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
-             else //if ( fMode = ecmDouble ) then
-               R.Double := Trunc( R.Double ) xor Trunc( V.Double );
+             else if ( fMode = ecmDouble ) then
+               R.Double := Trunc( R.Double ) xor Trunc( V.Double )
+             {$IFDEF BigNumbers}
+             else if ( fMode = ecmBigInteger ) then
+               R.BigInteger := R.BigInteger xor V.BigInteger
+             else if ( fMode = ecmBigDecimal ) then
+               R.BigDecimal := R.BigDecimal.AsBigInteger{Trunc} xor V.BigDecimal.AsBigInteger{Trunc}
+             {$ENDIF BigNumbers}
              end;
     end;
     end;
@@ -1352,6 +1814,10 @@ begin
     fCalcProc := Proc;
 
   R.Int64 := 0;
+  {$IFDEF BigNumbers}
+  R.BigInteger := 0;
+  R.BigDecimal := 0;
+  {$ENDIF BigNumbers}
 
   fLastError := '';
   if ( Expression = '' ) then
@@ -1424,6 +1890,44 @@ begin
 
   Value := R.Double;
 end;
+
+{$IFDEF BigNumbers}
+function TExpressionCalculator.CalculateBigInteger( var Value: BigInteger; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+var
+  M : TExpressionCalculatorMode;
+  R : TExpressionCalculatorValue;
+begin
+  M := fMode;
+  fMode := ecmBigInteger;
+  Result := Calculate( R, Expression, Proc );
+  fMode := M;
+  if ( result < 0 ) then
+    begin
+    Value := 0;
+    Exit;
+    end;
+
+  Value := R.BigInteger;
+end;
+
+function TExpressionCalculator.CalculateBigDecimal( var Value: BigDecimal; Expression: String = ''; Proc: TExpressionCalculatorCallback = nil ): Integer;
+var
+  M : TExpressionCalculatorMode;
+  R : TExpressionCalculatorValue;
+begin
+  M := fMode;
+  fMode := ecmBigDecimal;
+  Result := Calculate( R, Expression, Proc );
+  fMode := M;
+  if ( result < 0 ) then
+    begin
+    Value := 0;
+    Exit;
+    end;
+
+  Value := R.BigDecimal;
+end;
+{$ENDIF BigNumbers}
 
 // TExpressionCalculator component
 procedure TExpressionCalculator.SetVar( const Name: String; value: TExpressionCalculatorValue );
@@ -1541,6 +2045,12 @@ begin
     end;
   fHistory.InflateColumns;
   {$ENDIF uCheckStringGrid}
+
+  {$IFDEF BigNumbers}
+  rgMode.Items.Add( 'BigInteger' );
+  rgMode.Items.Add( 'BigDecimal' );
+  rgMode.Columns := 5;
+  {$ENDIF BigNumbers}
 end;
 
 destructor TFrExpressionCalculator.Destroy;
@@ -1714,27 +2224,41 @@ procedure TFrExpressionCalculator.edtExpressionChange(Sender: TObject);
       end;
   end;
 var
-  D    : TExpressionCalculatorValue;
+  Val  : TExpressionCalculatorValue;
   S    : String;
   sHex : String;
+  LF   : TFormatSettings;
 begin
+//  GetLocaleFormatSettings( 0, LF );
+  LF := TFormatSettings.Create( 0 );
+
   fCalculator.Expression := TEdit( Sender ).Text;
-  fResult := fCalculator.Calculate( D );
+  fResult := fCalculator.Calculate( Val );
   case fResult of
      0 : begin
          case fCalculator.Mode of
-           ecmSigned   : begin
-                         S := IntToStr( D.Int64 );
-                         sHex := PointerToHex( @D.Int64, SizeOf( D.Int64 ) );
-                         end;
-           ecmUnsigned : begin
-                         S := UIntToStr( D.UInt64 );
-                         sHex := PointerToHex( @D.UInt64, SizeOf( D.UInt64 ) );
-                         end;
-           ecmDouble   : begin
-                         S := Format( '%f', [ D.Double ] );
-                         sHex := PointerToHex( @D.Double, SizeOf( D.Double ) );
-                         end;
+           ecmSigned     : begin
+                           S := IntToStr( Val.Int64 );
+                           sHex := PointerToHex( @Val.Int64, SizeOf( Val.Int64 ) );
+                           end;
+           ecmUnsigned   : begin
+                           S := UIntToStr( Val.UInt64 );
+                           sHex := PointerToHex( @Val.UInt64, SizeOf( Val.UInt64 ) );
+                           end;
+           ecmDouble     : begin
+                           S := Format( '%f', [ Val.Double ] );
+                           sHex := PointerToHex( @Val.Double, SizeOf( Val.Double ) );
+                           end;
+           {$IFDEF BigNumbers}
+           ecmBigInteger : begin
+                           S := Val.BigInteger.ToString;
+                           sHex := Val.BigInteger.ToHexString;
+                           end;
+           ecmBigDecimal : begin
+                           S := Val.BigDecimal.ToString( LF );
+                           sHex := Val.BigDecimal.ToHexString;
+                           end;
+           {$ENDIF BigNumbers}
          end;
 
          while ( Copy( sHex, 1, 2 ) = '00' ) AND ( Length( sHex ) > 2 ) do
@@ -1748,8 +2272,23 @@ begin
 
   if ( fResult = 0 ) then
     begin
-    edtBinary.Text      := ConvertNumericalString( sHex, nsHexadecimal, nsBinary );
-    edtOctal.Text       := ConvertNumericalString( sHex, nsHexadecimal, nsOctal );
+    {$IFDEF BigNumbers}
+    if ( fCalculator.Mode = ecmBigInteger ) then
+      begin
+      edtBinary.Text    := Val.BigInteger.ToBinaryString;
+      edtOctal.Text     := Val.BigInteger.ToOctalString;
+      end
+    else if ( fCalculator.Mode = ecmBigDecimal ) then
+      begin
+      edtBinary.Text    := Val.BigDecimal.ToBinaryString;
+      edtOctal.Text     := Val.BigDecimal.ToOctalString;
+      end
+    else
+    {$ENDIF BigNumbers}
+      begin
+      edtBinary.Text    := ConvertNumericalString( sHex, nsHexadecimal, nsBinary );
+      edtOctal.Text     := ConvertNumericalString( sHex, nsHexadecimal, nsOctal );
+      end;
     edtDecimal.Text     := S;
     edtHexadecimal.Text := '0x' + sHex;
     end

@@ -227,7 +227,22 @@ object FrExpressionCalculator: TFrExpressionCalculator
         '        >     (Greater)'
         '    {1} | OR  (OR)'
         '        ^ XOR (XOR)'
-        '        & AND (AND)')
+        '        & AND (AND)'
+        ''
+        '  Functions'
+        '    round'
+        '    trunc'
+        '    int'
+        '    frac'
+        '    sin'
+        '    cos'
+        '    tan'
+        '    atan'
+        '    ln'
+        '    exp'
+        '    sign'
+        '    sgn'
+        '    xsgn')
       ParentFont = False
       TabOrder = 0
       WordWrap = False
