@@ -56,8 +56,6 @@ unit uExpressionCalculator;
     -2 = Unknown function or variable, see LastError for Name
 *)
 
-// MS KeyUp/Down? -> Auto detect mode...
-
 interface
 
 {$DEFINE uCheckStringGrid}
@@ -405,13 +403,12 @@ begin
                   else if ( fMode = ecmUnSigned ) then
                     result := false
                   else if ( fMode = ecmDouble ) then
-                    V.Double := arctan( V.Double )
+                    V.Double := ArcTan( V.Double )
                   {$IFDEF BigNumbers}
                   else if ( fMode = ecmBigInteger ) then
                     result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    result := false
-//                    V.BigDecimal := V.BigDecimal.ArcTan; // MS
+                    V.BigDecimal := V.BigDecimal.ArcTan;
                   {$ENDIF BigNumbers}
                   end
                 else if S = 'ln' then
@@ -446,7 +443,7 @@ begin
                   else if ( fMode = ecmBigInteger ) then
                     result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.exp.RoundTo( -2, rmNearestUp );
+                    V.BigDecimal := V.BigDecimal.exp;
                   {$ENDIF BigNumbers}
                   end
                 else if S = 'sign' then
@@ -1281,7 +1278,12 @@ begin
       if ( R.BigDecimal = 0 ) then
         R.BigDecimal := 1.0
       else
-        R.BigDecimal := R.BigDecimal.Exp( R.BigDecimal.Ln*V.BigDecimal ).RoundTo( -2, rmNearestUp );
+        begin
+        if ( R.BigDecimal.Precision = 1 ) AND ( V.BigDecimal.Precision = 1 ) then
+          R.BigDecimal := R.BigDecimal.Exp( R.BigDecimal.Ln*V.BigDecimal ).RoundTo( 0, rmNearestUp )
+        else
+          R.BigDecimal := R.BigDecimal.Exp( R.BigDecimal.Ln*V.BigDecimal );
+        end;
       end
     {$ENDIF BigNumbers}
     end;
@@ -2373,7 +2375,8 @@ begin
                            sHex := PointerToHex( @Val.UInt64, SizeOf( Val.UInt64 ) );
                            end;
            ecmDouble     : begin
-                           S := Format( '%f', [ Val.Double ] );
+//                           S := Format( '%f', [ Val.Double ] );
+                           S := FloatToStr( Val.Double );
                            sHex := PointerToHex( @Val.Double, SizeOf( Val.Double ) );
                            end;
            {$IFDEF BigNumbers}
