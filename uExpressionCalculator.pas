@@ -680,7 +680,7 @@ var
   exp: LongInt;
   s_pos: PChar;
   S : String;
-  bFail : boolean;
+  bFunc : Byte;
 begin
   result := 0;
   { skip blanks }
@@ -699,8 +699,45 @@ begin
     Exit;
 
   s_pos := fPtr;
-  fToken := tkNUMBER;
 
+  S := fPtr;
+  if ( Copy( S, 1, 2 ) = 'ln' ) then
+    bFunc := 2
+  else if ( Copy( S, 1, 3 ) = 'cos' ) OR
+          ( Copy( S, 1, 3 ) = 'exp' ) OR
+          ( Copy( S, 1, 3 ) = 'int' ) OR
+          ( Copy( S, 1, 3 ) = 'sgn' ) OR
+          ( Copy( S, 1, 3 ) = 'sin' ) OR
+          ( Copy( S, 1, 3 ) = 'sqr' ) OR
+          ( Copy( S, 1, 3 ) = 'tan' ) then
+    bFunc := 3
+  else if ( Copy( S, 1, 4 ) = 'atan' ) OR
+          ( Copy( S, 1, 4 ) = 'ceil' ) OR
+
+          ( Copy( S, 1, 4 ) = 'frac' ) OR
+          ( Copy( S, 1, 4 ) = 'sign' ) OR
+          ( Copy( S, 1, 4 ) = 'sqrt' ) OR
+
+          ( Copy( S, 1, 4 ) = 'xsgn' ) then
+    bFunc := 4
+  else if ( Copy( S, 1, 5 ) = 'floor' ) OR
+          ( Copy( S, 1, 5 ) = 'round' ) OR
+          ( Copy( S, 1, 5 ) = 'trunc' ) then
+    bFunc := 5
+  else if ( Copy( S, 1, 6 ) = 'arctan' ) then
+    bFunc := 6
+  else 
+    bFunc := 0;  
+  
+  if ( bFunc > 0 ) then   
+    begin
+    fsValue := Copy( S, 1, bFunc );
+    Inc( fPtr, bFunc );
+    fToken := tkIDENT;
+    Exit;    
+    end;
+
+  fToken := tkNUMBER;      
   { match pascal like hex number }
   if ( fPtr^ = '$' ) then
     begin
@@ -719,8 +756,6 @@ begin
   { match numbers }
   if {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9', 'A'..'H', 'a'..'h' ] ) then
     begin
-    bFail := False;
-
     { C like mathing }
     if ( fPtr^ = '0' ) then
       begin
@@ -819,11 +854,9 @@ begin
     { match simple decimal number }
     if not ConvertNumber( s_pos, fPtr, 10 ) then
       begin
-//      fToken := tkERROR;
-//      result := -1;
-//      Exit;
-      bFail := True;
-      Dec( fPtr );
+      fToken := tkERROR;
+      result := -1;
+      Exit;
       end;
 
     { match degree number }
@@ -934,34 +967,28 @@ begin
           Inc( fPtr );
         if not {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) then
           begin
-//          fToken := tkERROR;
-//          result := -1;
-//          Exit;
-
-          bFail := True;
-          Dec( fPtr );
-          end
-        else
+          fToken := tkERROR;
+          result := -1;
+          Exit;
+          end;
+        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
           begin
-          while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+          exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
+          Inc( fPtr );
+          end;
+        if ( exp = 0 ) then
+          fResult.Double := 1.0
+        else if ( sign = '-' ) then
+          while exp > 0 do
             begin
-            exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
-            Inc( fPtr );
-            end;
-          if ( exp = 0 ) then
-            fResult.Double := 1.0
-          else if ( sign = '-' ) then
-            while exp > 0 do
-              begin
-              fResult.Double := fResult.Double * 10;
-              Dec( exp );
-              end
-          else
-            while exp > 0 do
-              begin
-              fResult.Double := fResult.Double / 10;
-              Dec( exp );
-              end
+            fResult.Double := fResult.Double * 10;
+            Dec( exp );
+            end
+        else
+          while exp > 0 do
+            begin
+            fResult.Double := fResult.Double / 10;
+            Dec( exp );
             end;
         end
       {$IFDEF BigNumbers}
@@ -974,35 +1001,29 @@ begin
           Inc( fPtr );
         if not {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) then
           begin
-//          fToken := tkERROR;
-//          result := -1;
-//          Exit;
-
-          bFail := True;
-          Dec( fPtr );
-          end
-        else
-          begin
-          while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
-            begin
-            exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
-            Inc( fPtr );
-            end;
-          if ( exp = 0 ) then
-            fResult.BigDecimal := 1.0
-          else if ( sign = '-' ) then
-            while exp > 0 do
-              begin
-              fResult.BigDecimal := fResult.BigDecimal * 10;
-              Dec( exp );
-              end
-          else
-            while exp > 0 do
-              begin
-              fResult.BigDecimal := fResult.BigDecimal / 10;
-              Dec( exp );
-              end;
+          fToken := tkERROR;
+          result := -1;
+          Exit;
           end;
+        while {$IF CompilerVersion >= 20}CharInSet( fPtr^,{$ELSE}( fPtr^ in{$IFEND} [ '0'..'9' ] ) do
+          begin
+          exp := exp * 10 + Ord( fPtr^ ) - Ord( '0' );
+          Inc( fPtr );
+          end;
+        if ( exp = 0 ) then
+          fResult.BigDecimal := 1.0
+        else if ( sign = '-' ) then
+          while exp > 0 do
+            begin
+            fResult.BigDecimal := fResult.BigDecimal * 10;
+            Dec( exp );
+            end
+        else
+          while exp > 0 do
+            begin
+            fResult.BigDecimal := fResult.BigDecimal / 10;
+            Dec( exp );
+            end;
         end
       {$ENDIF BigNumbers}
       else
@@ -1011,9 +1032,8 @@ begin
         result := -1;
         end;
       end;
-
-    if NOT bFail then
-      Exit;
+      
+    Exit;
     end;
 
   { match identifiers }
@@ -1043,7 +1063,7 @@ begin
       fToken := tkIDENT;
     Exit;
     end;
-
+ 
   { match operators }
   c := fPtr^;
   Inc( fPtr );
