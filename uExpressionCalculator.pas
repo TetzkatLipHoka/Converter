@@ -239,6 +239,72 @@ uses
 {$R *.dfm}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+const
+  FUNCTION_NAMES : Array [ 0..60 ] of String = (
+    'cycletograd',
+    'gradtocycle',
+    'cycletodeg',
+    'cycletorad',
+    'degtocycle',
+    'radtocycle',
+    'degtograd',
+    'gradtodeg',
+    'gradtorad',
+    'radtograd',
+    'cosecant',
+    'degtorad',
+    'radtodeg',
+    'arccosh',
+    'arccoth',
+    'arccsch',
+    'arcsech',
+    'arcsinh',
+    'arctanh',
+    'sqrteps',
+    'arccos',
+    'arccot',
+    'arccsc',
+    'arcsec',
+    'arcsin',
+    'arctan',
+    'secant',
+    'cosec',
+    'cotan',
+    'floor',
+    'lnxp1',
+    'log10',
+    'round',
+    'trunc',
+    'atan',
+    'ceil',
+    'cosh',
+    'coth',
+    'even',
+    'frac',
+    'log2',
+    'sech',
+    'sign',
+    'sign',
+    'sinh',
+    'sqrt',
+    'tanh',
+    'xsgn',
+    'abs',
+    'cos',
+    'eps',
+    'exp',
+    'int',
+    'odd',
+    'sec',
+    'sgn',
+    'sin',
+    'sqr',
+    'tan',
+    'ln',
+    'pi'
+  );
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 constructor TExpressionCalculator.Create;
 begin
   inherited Create;
@@ -267,6 +333,9 @@ begin
 end;
 
 function TExpressionCalculator.CalcProc( ctype: TExpressionCalculatorCallbackType; const S: String; var V: TExpressionCalculatorValue ): Boolean;
+const
+  EPS = 2.220446049250313E-16;
+  SQRTEPS = 1.4901161194e-08; // SQRT( EPS )
 begin
   Result := TRUE;
   case ctype of
@@ -278,6 +347,28 @@ begin
                   {$IFDEF BigNumbers}
                   else if ( fMode = ecmBigDecimal ) then
                     V.BigDecimal := Pi
+                  {$ENDIF BigNumbers}
+                  else
+                    result := False;
+                  end
+                else if S = 'eps' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := EPS
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := EPS
+                  {$ENDIF BigNumbers}
+                  else
+                    result := False;
+                  end
+                else if S = 'sqrteps' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := SQRTEPS
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := SQRTEPS
                   {$ENDIF BigNumbers}
                   else
                     result := False;
@@ -298,7 +389,25 @@ begin
                 end;
     ctSetValue: Result := FALSE;
     ctFunction: begin
-                if S = 'round' then
+                if S = 'abs' then
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    V.Int64 := ABS( V.Int64 )
+                  else if ( fMode = ecmUnSigned ) then
+//                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+//                    V.UInt64 := ABS( V.UInt64 )
+//                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := ABS( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    V.BigInteger := V.BigInteger.ABS
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.ABS;
+                  {$ENDIF BigNumbers}
+                  end
+
+                else if S = 'round' then
                   begin
 //                  if ( fMode = ecmSigned ) then
 //                  else if ( fMode = ecmUnSigned ) then
@@ -310,6 +419,7 @@ begin
                     V.BigDecimal := V.BigDecimal.RoundTo( 0 );
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'trunc' then
                   begin
 //                  if ( fMode = ecmSigned ) then
@@ -322,6 +432,7 @@ begin
                     V.BigDecimal := V.BigDecimal.Int; //.Trunc;
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'int' then
                   begin
 //                  if ( fMode = ecmSigned ) then
@@ -329,11 +440,12 @@ begin
                   if ( fMode = ecmDouble ) then
                     V.Double := Int( V.Double )
                   {$IFDEF BigNumbers}
-                  else if ( fMode = ecmBigInteger ) then
+//                  else if ( fMode = ecmBigInteger ) then
                   else if ( fMode = ecmBigDecimal ) then
                     V.BigDecimal := V.BigDecimal.Int;
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'frac' then
                   begin
                   if ( fMode = ecmSigned ) then
@@ -351,88 +463,324 @@ begin
                     V.BigDecimal := V.BigDecimal.Frac;
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'sin' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := sin( V.Double )
                   {$IFDEF BigNumbers}
                   else if ( fMode = ecmBigInteger ) then
                     result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.Sin;
+                    V.BigDecimal := V.BigDecimal.Sin
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
                 else if S = 'cos' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := cos( V.Double )
                   {$IFDEF BigNumbers}
-                  else if ( fMode = ecmBigInteger ) then
-                    result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.Cos;
+                    V.BigDecimal := V.BigDecimal.Cos
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
                 else if S = 'tan' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
-                    V.Double := sin( V.Double ) / cos( V.Double )
+                  if ( fMode = ecmDouble ) then
+                    V.Double := tan( V.Double )
                   {$IFDEF BigNumbers}
-                  else if ( fMode = ecmBigInteger ) then
-                    result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.Tan;
+                    V.BigDecimal := V.BigDecimal.Tan
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
+                else if S = 'cotan' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CoTan( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CoTan
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
                 else if ( S = 'atan' ) OR ( S = 'arctan' ) then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := ArcTan( V.Double )
                   {$IFDEF BigNumbers}
-                  else if ( fMode = ecmBigInteger ) then
-                    result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.ArcTan;
+                    V.BigDecimal := V.BigDecimal.ArcTan
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
+                else if ( S = 'sec' ) OR ( S = 'secant' ) then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := Secant( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.Secant
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if ( S = 'cosec' ) OR ( S = 'cosecant' ) then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CoSecant( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CoSecant
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arcsin' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcSin( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.ArcSin
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arccos' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcCos( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.ArcCos
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arctanh' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcTanH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    try
+                      V.BigDecimal := V.BigDecimal.ArcTanH;
+                    except
+                      result := false;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arcsec' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcSec( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    try
+                      V.BigDecimal := V.BigDecimal.ArcSec;
+                    except
+                      result := false;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arccsc' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcCsc( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    try
+                      V.BigDecimal := V.BigDecimal.ArcCsc;
+                    except
+                      result := false;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arccoth' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcCotH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    try
+                      V.BigDecimal := V.BigDecimal.ArcCotH;
+                    except
+                      result := false;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arcsech' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcSecH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    try
+                      V.BigDecimal := V.BigDecimal.ArcSecH;
+                    except
+                      result := false;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arccsch' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcCscH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    try
+                      V.BigDecimal := V.BigDecimal.ArcCscH;
+                    except
+                      result := false;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'sinh' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := SinH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.SinH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'cosh' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CosH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CosH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arcsinh' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcSinH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.ArcSinH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arccosh' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcCosH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.ArcCosH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'tanh' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := TanH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.TanH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'coth' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CotH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CotH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'sech' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := SecH( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.SecH
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'arccot' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := ArcCot( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.ArcCot
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
                 else if S = 'ln' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := ln( V.Double )
                   {$IFDEF BigNumbers}
-                  else if ( fMode = ecmBigInteger ) then
-                    result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.Ln;
+                    V.BigDecimal := V.BigDecimal.Ln
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
                 else if S = 'exp' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     try
                       V.Double := exp( V.Double );
                     except
@@ -440,12 +788,13 @@ begin
                       fToken := tkERROR;
                     end
                   {$IFDEF BigNumbers}
-                  else if ( fMode = ecmBigInteger ) then
-                    result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.exp;
+                    V.BigDecimal := V.BigDecimal.exp
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
                 else if S = 'sign' then
                   begin
                   if ( fMode = ecmSigned ) then
@@ -481,6 +830,7 @@ begin
                     end;
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'sgn' then
                   begin
                   if ( fMode = ecmSigned ) then
@@ -523,6 +873,7 @@ begin
                     end;
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'xsgn' then
                   begin
                   if ( fMode = ecmSigned ) then
@@ -558,34 +909,32 @@ begin
 
                 else if S = 'ceil' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := Ceil( V.Double )
                   {$IFDEF BigNumbers}
                   else if ( fMode = ecmBigInteger ) then
                     result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.Ceil;
+                    V.BigDecimal := V.BigDecimal.Ceil
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
                 else if S = 'floor' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := Floor( V.Double )
                   {$IFDEF BigNumbers}
                   else if ( fMode = ecmBigInteger ) then
                     result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.Floor;
+                    V.BigDecimal := V.BigDecimal.Floor
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
+
                 else if S = 'sqr' then
                   begin
                   if ( fMode = ecmSigned ) then
@@ -603,20 +952,280 @@ begin
                     V.BigDecimal := V.BigDecimal.SQR;
                   {$ENDIF BigNumbers}
                   end
+
                 else if S = 'sqrt' then
                   begin
-                  if ( fMode = ecmSigned ) then
-                    result := false
-                  else if ( fMode = ecmUnSigned ) then
-                    result := false
-                  else if ( fMode = ecmDouble ) then
+                  if ( fMode = ecmDouble ) then
                     V.Double := SQRT( V.Double )
                   {$IFDEF BigNumbers}
                   else if ( fMode = ecmBigInteger ) then
                     result := false
                   else if ( fMode = ecmBigDecimal ) then
-                    V.BigDecimal := V.BigDecimal.SQRT;
+                    V.BigDecimal := V.BigDecimal.SQRT
                   {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'even' then
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    begin
+                    if NOT odd( V.Int64 ) then
+                      V.Int64 := 1
+                    else
+                      V.Int64 := 0;
+                    end
+                  else if ( fMode = ecmUnSigned ) then
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    begin
+                    if NOT odd( V.UInt64 ) then
+                      V.UInt64 := 1
+                    else
+                      V.UInt64 := 0;
+                    end
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    begin
+                    if V.BigInteger.IsEven then
+                      V.BigInteger := 1
+                    else
+                      V.BigInteger := 0;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'odd' then
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    begin
+                    if odd( V.Int64 ) then
+                      V.Int64 := 1
+                    else
+                      V.Int64 := 0;
+                    end
+                  else if ( fMode = ecmUnSigned ) then
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                    begin
+                    if odd( V.UInt64 ) then
+                      V.UInt64 := 1
+                    else
+                      V.UInt64 := 0;
+                    end
+                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    begin
+                    if V.BigInteger.IsOdd then
+                      V.BigInteger := 1
+                    else
+                      V.BigInteger := 0;
+                    end
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'sign' then
+                  begin
+                  if ( fMode = ecmSigned ) then
+                    V.Int64 := sign( V.Int64 )
+                  else if ( fMode = ecmUnSigned ) then
+                    result := false
+//                    {$IF CompilerVersion <= 20}{$RANGECHECKS OFF}{$IFEND} // RangeCheck might cause Internal-Error C1118
+//                    V.UInt64 := sign( V.UInt64 )
+//                    {$IF CompilerVersion <= 20}{$RANGECHECKS ON}{$IFEND} // RangeCheck might cause Internal-Error C1118
+                  else if ( fMode = ecmDouble ) then
+                    V.Double := sign( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigInteger ) then
+                    V.BigInteger := V.BigInteger.sign
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.sign;
+                  {$ENDIF BigNumbers}
+                  end
+
+                else if S = 'log2' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := log2( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.log2
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'log10' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := log10( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.log10
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'lnxp1' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := LnXP1( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.LnXP1
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'degtorad' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := DegToRad( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.DegToRad
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'radtodeg' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := RadToDeg( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.RadToDeg
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'gradtorad' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := GradToRad( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.GradToRad
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'radtograd' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := RadToGrad( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.RadToGrad
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'gradtodeg' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := GradToDeg( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.GradToDeg
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'gradtocycle' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := GradToCycle( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.GradToCycle
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'cycletodeg' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CycleToDeg( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CycleToDeg
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'cycletograd' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CycleToGrad( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CycleToGrad
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'cycletorad' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := CycleToRad( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.CycleToRad
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'radtocycle' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := RadToCycle( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.RadToCycle
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'degtograd' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := DegToGrad( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.DegToGrad
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
+                  end
+
+                else if S = 'degtocycle' then
+                  begin
+                  if ( fMode = ecmDouble ) then
+                    V.Double := DegToCycle( V.Double )
+                  {$IFDEF BigNumbers}
+                  else if ( fMode = ecmBigDecimal ) then
+                    V.BigDecimal := V.BigDecimal.DegToCycle
+                  {$ENDIF BigNumbers}
+                  else
+                    result := false;
                   end
                 else
                   Result := FALSE;
@@ -680,6 +1289,7 @@ var
   exp: LongInt;
   s_pos: PChar;
   S : String;
+  i : Integer;
   bFunc : Byte;
 begin
   result := 0;
@@ -700,41 +1310,18 @@ begin
 
   s_pos := fPtr;
 
-  S := fPtr;
-  if ( Copy( S, 1, 2 ) = 'ln' ) then
-    bFunc := 2
-  else if ( Copy( S, 1, 3 ) = 'cos' ) OR
-          ( Copy( S, 1, 3 ) = 'exp' ) OR
-          ( Copy( S, 1, 3 ) = 'int' ) OR
-          ( Copy( S, 1, 3 ) = 'sgn' ) OR
-          ( Copy( S, 1, 3 ) = 'sin' ) OR
-          ( Copy( S, 1, 3 ) = 'sqr' ) OR
-          ( Copy( S, 1, 3 ) = 'tan' ) then
-    bFunc := 3
-  else if ( Copy( S, 1, 4 ) = 'atan' ) OR
-          ( Copy( S, 1, 4 ) = 'ceil' ) OR
-
-          ( Copy( S, 1, 4 ) = 'frac' ) OR
-          ( Copy( S, 1, 4 ) = 'sign' ) OR
-          ( Copy( S, 1, 4 ) = 'sqrt' ) OR
-
-          ( Copy( S, 1, 4 ) = 'xsgn' ) then
-    bFunc := 4
-  else if ( Copy( S, 1, 5 ) = 'floor' ) OR
-          ( Copy( S, 1, 5 ) = 'round' ) OR
-          ( Copy( S, 1, 5 ) = 'trunc' ) then
-    bFunc := 5
-  else if ( Copy( S, 1, 6 ) = 'arctan' ) then
-    bFunc := 6
-  else 
-    bFunc := 0;  
-  
-  if ( bFunc > 0 ) then   
+  S := LowerCase( fPtr );
+  bFunc := 0;
+  for i := Low( FUNCTION_NAMES ) to High( FUNCTION_NAMES ) do
     begin
-    fsValue := Copy( S, 1, bFunc );
-    Inc( fPtr, bFunc );
-    fToken := tkIDENT;
-    Exit;    
+    bFunc := Length( FUNCTION_NAMES[ i ] );
+    if ( Copy( S, 1, bFunc ) = FUNCTION_NAMES[ i ] ) then
+      begin
+      fsValue := Copy( S, 1, bFunc );
+      Inc( fPtr, bFunc );
+      fToken := tkIDENT;
+      Exit;
+      end;
     end;
 
   fToken := tkNUMBER;      
