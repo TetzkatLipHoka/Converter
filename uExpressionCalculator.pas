@@ -56,11 +56,15 @@ unit uExpressionCalculator;
     -2 = Unknown function or variable, see LastError for Name
 *)
 
+// MS KeyUp/Down? -> Auto detect mode...
+
 interface
 
 {$DEFINE uCheckStringGrid}
 {$DEFINE uTLH_ComponentTools}
 {$DEFINE BigNumbers}
+
+{$WARN SYMBOL_PLATFORM OFF}
 
 uses
   Classes, Controls, ExtCtrls, Forms, StdCtrls, Grids
@@ -1311,7 +1315,6 @@ begin
   s_pos := fPtr;
 
   S := LowerCase( fPtr );
-  bFunc := 0;
   for i := Low( FUNCTION_NAMES ) to High( FUNCTION_NAMES ) do
     begin
     bFunc := Length( FUNCTION_NAMES[ i ] );
@@ -2965,8 +2968,11 @@ var
   sHex : String;
   LF   : TFormatSettings;
 begin
-//  GetLocaleFormatSettings( 0, LF );
-  LF := TFormatSettings.Create( 0 );
+  {$IF CompilerVersion >= 30}
+  LF := TFormatSettings.Create( LOCALE_SYSTEM_DEFAULT );
+  {$ELSE}
+  GetLocaleFormatSettings( LOCALE_SYSTEM_DEFAULT, LF );
+  {$IFEND}
 
   fCalculator.Expression := TEdit( Sender ).Text;
   fResult := fCalculator.Calculate( Val );

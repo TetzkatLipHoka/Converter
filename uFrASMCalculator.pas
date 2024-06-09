@@ -455,11 +455,16 @@ begin
   if chkASMSigned.Checked then
     begin
     S.Mode := kplmSigned;
-    S.MinI := 0;
     if ( rgASMArchitecture.ItemIndex = 1 ) then
-      S.MaxI := High( Int64 )
+      begin
+      S.MinI := Low( Int64 );
+      S.MaxI := High( Int64 );
+      end
     else
+      begin
+      S.MinI := Low( Integer );
       S.MaxI := High( Integer );
+      end;
     S.IncI := 1;
     end
   else
